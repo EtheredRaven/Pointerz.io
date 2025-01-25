@@ -1,0 +1,259 @@
+html,
+body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background-color: #121212;
+  font-family: Nunito;
+
+  --red-color: hsl(0, 65%, 40%);
+  --red-shadow-color: hsl(0, 65%, 25%);
+
+  --dark-red-color: hsl(0, 65%, 30%);
+  --dark-red-shadow-color: hsl(0, 65%, 15%);
+
+  --pink-color: hsl(330, 65%, 40%);
+  --pink-shadow-color: hsl(330, 65%, 25%);
+
+  --blue-color: hsl(210, 65%, 40%);
+  --blue-shadow-color: hsl(210, 65%, 25%);
+
+  --purple-color: hsl(306, 65%, 40%);
+  --purple-shadow-color: hsl(306, 65%, 25%);
+
+  --dark-blue-color: hsl(210, 65%, 30%);
+  --dark-blue-shadow-color: hsl(210, 65%, 15%);
+
+  --yellow-color: hsl(60, 80%, 45%);
+  --yellow-shadow-color: hsl(60, 80%, 30%);
+
+  --green-color: hsl(120, 65%, 40%);
+  --green-shadow-color: hsl(120, 65%, 25%);
+
+  --orange-color: hsl(25, 65%, 40%);
+  --orange-shadow-color: hsl(25, 65%, 25%);
+
+  --dark-orange-color: hsl(25, 65%, 30%);
+  --dark-orange-shadow-color: hsl(25, 65%, 15%);
+
+  --dark-green-color: hsl(120, 65%, 30%);
+  --dark-green-shadow-color: hsl(120, 65%, 15%);
+
+  --light-grey-color: hsl(120, 0%, 60%);
+  --light-grey-shadow-color: hsl(120, 0%, 45%);
+
+  --grey-color: hsl(120, 0%, 40%);
+  --grey-shadow-color: hsl(120, 0%, 25%);
+
+  --dark-grey-color: hsl(120, 0%, 30%);
+  --dark-grey-shadow-color: hsl(120, 0%, 15%);
+
+  --white-color: hsl(0, 0%, 100%);
+  --almost-white-color: rgb(219, 219, 219);
+
+  --almost-black-color: rgb(20, 20, 20);
+  --container-blocks-bg: rgb(26, 26, 26);
+  --over-container-blocks-bg: rgb(42, 42, 42);
+  --over-container-blocks-selected-bg: rgb(50, 50, 50);
+
+  --overlay-bg: rgba(0, 0, 0, 0.85);
+}
+
+@font-face {
+  font-family: "TheShapeOfThings";
+  src: url("./assets/fonts/TheShapeOfThings.ttf");
+}
+
+@font-face {
+  font-family: "virgo";
+  src: url("./assets/fonts/virgo.ttf");
+}
+
+@font-face {
+  font-family: "Nunito";
+  src: url("./assets/fonts/Nunito-Regular.ttf");
+}
+@font-face {
+  font-family: "Nunito";
+  src: url("./assets/fonts/Nunito-Italic.ttf");
+  font-style: italic;
+}
+@font-face {
+  font-family: "Nunito Bold";
+  src: url("./assets/fonts/Nunito-Bold.ttf");
+}
+@font-face {
+  font-family: "Nunito Bold";
+  src: url("./assets/fonts/Nunito-BoldItalic.ttf");
+  font-style: italic;
+}
+@font-face {
+  font-family: "Nunito ExtraBold";
+  src: url("./assets/fonts/Nunito-ExtraBold.ttf");
+}
+@font-face {
+  font-family: "Nunito ExtraBold";
+  src: url("./assets/fonts/Nunito-ExtraBoldItalic.ttf");
+  font-style: italic;
+}
+@font-face {
+  font-family: "Nunito Light";
+  src: url("./assets/fonts/Nunito-Light.ttf");
+}
+@font-face {
+  font-family: "Nunito Light";
+  src: url("./assets/fonts/Nunito-LightItalic.ttf");
+  font-style: italic;
+}
+@font-face {
+  font-family: "Nunito ExtraLight";
+  src: url("./assets/fonts/Nunito-ExtraLight.ttf");
+}
+@font-face {
+  font-family: "Nunito ExtraLight";
+  src: url("./assets/fonts/Nunito-ExtraLightItalic.ttf");
+  font-style: italic;
+}
+@font-face {
+  font-family: "Nunito Black";
+  src: url("./assets/fonts/Nunito-Black.ttf");
+}
+@font-face {
+  font-family: "Nunito Black";
+  src: url("./assets/fonts/Nunito-BlackItalic.ttf");
+  font-style: italic;
+}
+
+@keyframes colorchange {
+  0% {
+    background: hsl(0, 65%, 40%);
+    box-shadow: 0 4px hsl(0, 65%, 25%);
+    webkit-transform: scale(0.95);
+    -webkit-transform: scale(0.95);
+  }
+  5% {
+    background: hsl(18, 65%, 40%);
+    box-shadow: 0 4px hsl(18, 65%, 25%);
+    webkit-transform: scale(1.05);
+    -webkit-transform: scale(1.05);
+  }
+  10% {
+    background: hsl(36, 65%, 40%);
+    box-shadow: 0 4px hsl(36, 65%, 25%);
+    webkit-transform: scale(0.95);
+    -webkit-transform: scale(0.95);
+  }
+  15% {
+    background: hsl(54, 65%, 40%);
+    box-shadow: 0 4px hsl(54, 65%, 25%);
+    webkit-transform: scale(1.05);
+    -webkit-transform: scale(1.05);
+  }
+  20% {
+    background: hsl(72, 65%, 40%);
+    box-shadow: 0 4px hsl(72, 65%, 25%);
+    webkit-transform: scale(0.95);
+    -webkit-transform: scale(0.95);
+  }
+  25% {
+    background: hsl(90, 65%, 40%);
+    box-shadow: 0 4px hsl(90, 65%, 25%);
+    webkit-transform: scale(1.05);
+    -webkit-transform: scale(1.05);
+  }
+  30% {
+    background: hsl(108, 65%, 40%);
+    box-shadow: 0 4px hsl(108, 65%, 25%);
+    webkit-transform: scale(0.95);
+    -webkit-transform: scale(0.95);
+  }
+  35% {
+    background: hsl(126, 65%, 40%);
+    box-shadow: 0 4px hsl(126, 65%, 25%);
+    webkit-transform: scale(1.05);
+    -webkit-transform: scale(1.05);
+  }
+  40% {
+    background: hsl(144, 65%, 40%);
+    box-shadow: 0 4px hsl(144, 65%, 25%);
+    webkit-transform: scale(0.95);
+    -webkit-transform: scale(0.95);
+  }
+  45% {
+    background: hsl(162, 65%, 40%);
+    box-shadow: 0 4px hsl(162, 65%, 25%);
+    webkit-transform: scale(1.05);
+    -webkit-transform: scale(1.05);
+  }
+  50% {
+    background: hsl(180, 65%, 40%);
+    box-shadow: 0 4px hsl(180, 65%, 25%);
+    webkit-transform: scale(0.95);
+    -webkit-transform: scale(0.95);
+  }
+  55% {
+    background: hsl(198, 65%, 40%);
+    box-shadow: 0 4px hsl(198, 65%, 25%);
+    webkit-transform: scale(1.05);
+    -webkit-transform: scale(1.05);
+  }
+  60% {
+    background: hsl(216, 65%, 40%);
+    box-shadow: 0 4px hsl(216, 65%, 25%);
+    webkit-transform: scale(0.95);
+    -webkit-transform: scale(0.95);
+  }
+  65% {
+    background: hsl(234, 65%, 40%);
+    box-shadow: 0 4px hsl(234, 65%, 25%);
+    webkit-transform: scale(1.05);
+    -webkit-transform: scale(1.05);
+  }
+  70% {
+    background: hsl(252, 65%, 40%);
+    box-shadow: 0 4px hsl(252, 65%, 25%);
+    webkit-transform: scale(0.95);
+    -webkit-transform: scale(0.95);
+  }
+  75% {
+    background: hsl(270, 65%, 40%);
+    box-shadow: 0 4px hsl(270, 65%, 25%);
+    webkit-transform: scale(1.05);
+    -webkit-transform: scale(1.05);
+  }
+  80% {
+    background: hsl(288, 65%, 40%);
+    box-shadow: 0 4px hsl(288, 65%, 25%);
+    webkit-transform: scale(0.95);
+    -webkit-transform: scale(0.95);
+  }
+  85% {
+    background: hsl(306, 65%, 40%);
+    box-shadow: 0 4px hsl(306, 65%, 25%);
+    webkit-transform: scale(1.05);
+    -webkit-transform: scale(1.05);
+  }
+  90% {
+    background: hsl(324, 65%, 40%);
+    box-shadow: 0 4px hsl(324, 65%, 25%);
+    webkit-transform: scale(0.95);
+    -webkit-transform: scale(0.95);
+  }
+  95% {
+    background: hsl(342, 65%, 40%);
+    box-shadow: 0 4px hsl(342, 65%, 25%);
+    webkit-transform: scale(1.05);
+    -webkit-transform: scale(1.05);
+  }
+  100% {
+    background: hsl(359, 65%, 40%);
+    box-shadow: 0 4px hsl(359, 65%, 25%);
+    webkit-transform: scale(0.95);
+    -webkit-transform: scale(0.95);
+  }
+}
+
+canvas {
+  margin: 0 auto;
+  padding: 0;
+}
