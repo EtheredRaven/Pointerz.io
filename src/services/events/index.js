@@ -2,6 +2,7 @@ module.exports = function (Server) {
   // New user arrives on index.html, he triggers the connection
   Server.io.on("connection", function (socket) {
     Server.initSocketLogging(socket);
+    Server.infoLogging("User connected", socket);
     require("./users")(Server, socket);
     require("./race")(Server, socket);
     require("./data")(Server, socket);
@@ -13,9 +14,8 @@ module.exports = function (Server) {
       socket,
       "disconnect",
       function () {
-        Server.assertUserIsLoggedIn(socket, true);
-        Server.assertUserIsPlaying(socket);
-        Server.leaveCurrentRoom(socket);
+        Server.leaveCurrentRoom(socket, false);
+        Server.infoLogging("User disconnected", socket);
       },
       false
     );

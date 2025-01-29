@@ -15,7 +15,7 @@ module.exports = function (Server) {
       Server.logStream?.close();
       Server.LOGS_FILE_NAME = currentDate;
       Server.logStream = fs.createWriteStream(
-        Server.PATH_TO_LOGS + Server.LOGS_FILE_NAME + ".log",
+        Server.PATH_TO_LOGS + Server.LOGS_FILE_NAME + ".csv",
         {
           flags: "w",
         }
@@ -31,7 +31,7 @@ module.exports = function (Server) {
 
   Server.logging = function (...args) {
     if (!args.length) return;
-    let separator = " - ";
+    let separator = ";";
     let log = new Date().toUTCString() + separator;
     args.forEach((arg) => {
       log += arg.toString() + separator;
@@ -50,9 +50,14 @@ module.exports = function (Server) {
   Server.initSocketLogging = function (socket) {
     socket.toString = function () {
       return (
+        socket.id +
+        "_" +
         (socket.userModel ? socket.userModel.username : "_") +
         "@" +
-        socket.handshake.address
+        socket.handshake.address +
+        (socket.userModel?.koinosAccount
+          ? ":" + socket.userModel.koinosAccount
+          : "")
       );
     };
   };

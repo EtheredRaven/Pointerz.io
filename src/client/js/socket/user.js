@@ -4,6 +4,7 @@ module.exports = function (Client) {
   });
 
   Client.registerEvent("logged_in", (data) => {
+    console.log(data);
     Client.svelte.loggedIn(data);
     Client.svelte.updateUserModel(data.user);
   });

@@ -14,8 +14,8 @@
 
   Client.svelte.updateUserModel = function (newUserModel) {
     $userModel = newUserModel;
-    console.log($userModel.nfts.filter((nft) => nft.nftSelected));
     Client.phaser.updateVisualiserNFTs &&
+      $userModel.nfts &&
       Client.phaser.updateVisualiserNFTs(
         $userModel.nfts.filter((nft) => nft.nftSelected)
       );

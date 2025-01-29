@@ -2,9 +2,10 @@ module.exports = function (Server) {
   Server.registerEvent = function (socket, eventName, cb, logIt = true) {
     socket.on(eventName, async function (...args) {
       try {
+        logIt && Server.infoLogging(eventName, socket, "received");
         await Promise.resolve().then(() => cb.apply(this, args));
       } catch (err) {
-        logIt && Server.errorLogging(eventName, err, socket);
+        logIt && Server.errorLogging(eventName, socket, err);
       }
     });
   };
@@ -18,9 +19,9 @@ module.exports = function (Server) {
     try {
       asserters();
       socket.emit(eventName, ...paramsArray);
-      Server.infoLogging(eventName, "emitted", socket);
+      Server.infoLogging(eventName, socket, "emitted");
     } catch (err) {
-      Server.errorLogging(eventName, err, socket);
+      Server.errorLogging(eventName, socket, err);
     }
   };
 
@@ -37,17 +38,17 @@ module.exports = function (Server) {
         ? excludedSocket.broadcast.to(roomId)
         : Server.io.sockets.to(roomId);
       broadcastFunction.emit(eventName, ...paramsArray);
-      Server.infoLogging(eventName, "broadcasted", roomId);
+      Server.infoLogging(eventName, "", "broadcasted", roomId);
     } catch (err) {
-      Server.errorLogging(eventName, err, roomId);
+      Server.errorLogging(eventName, "", err, roomId);
     }
   };
 
   Server.initReturnEvent = function (emitFunction, socket, loggingEvent) {
     return ({ retError = false, retInfo = false, data = {} }) => {
       retError
-        ? Server.errorLogging(loggingEvent, retError, socket)
-        : Server.infoLogging(loggingEvent, retInfo, socket);
+        ? Server.errorLogging(loggingEvent, socket, retError)
+        : Server.infoLogging(loggingEvent, socket, retInfo);
 
       emitFunction(socket, {
         retError: retError,

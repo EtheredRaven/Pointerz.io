@@ -1,10 +1,15 @@
 module.exports = function (Server, socket) {
-  Server.registerRaceEvent = function (socket, eventName, cb) {
-    Server.registerEvent(socket, eventName, function (...args) {
-      Server.assertUserIsLoggedIn(socket, true);
-      Server.assertUserIsPlaying(socket);
-      cb(...args);
-    });
+  Server.registerRaceEvent = function (socket, eventName, cb, logIt = true) {
+    Server.registerEvent(
+      socket,
+      eventName,
+      function (...args) {
+        Server.assertUserIsLoggedIn(socket, true);
+        Server.assertUserIsPlaying(socket);
+        cb(...args);
+      },
+      logIt
+    );
   };
 
   // Creates a new room and joins it
@@ -38,12 +43,17 @@ module.exports = function (Server, socket) {
   });
 
   // Simulates the new position of the player according to the inputs sent
-  Server.registerRaceEvent(socket, "new_position", function (inputs) {
-    Server.assertParametersExist({
-      inputs: inputs,
-    });
-    Server.rooms[socket.roomId].simulatePlayer(socket.player, inputs);
-  });
+  Server.registerRaceEvent(
+    socket,
+    "new_position",
+    function (inputs) {
+      Server.assertParametersExist({
+        inputs: inputs,
+      });
+      Server.rooms[socket.roomId].simulatePlayer(socket.player, inputs);
+    },
+    false
+  );
 
   // Go to the last checkpoint
   Server.registerRaceEvent(socket, "go_to_last_checkpoint", function () {

@@ -64,48 +64,64 @@ module.exports = function (Server) {
   };
 
   Server.UserModel.upvoteCircuit = async function (socket, circuitId) {
-    let circuitVoteIndex = socket.userModel.circuitVotes.findIndex(
-      (el) => el.toString() == circuitId.toString()
-    );
-    let promises = [];
-    let isUpvoted = circuitVoteIndex < 0;
-    if (isUpvoted) {
-      promises.push(
-        Server.CircuitModel.findOneAndUpdate(
-          { _id: Server.UserModel.toObjectId(circuitId) },
-          { $inc: { upvotes: 1 } },
-          { new: true }
-        ),
-        Server.UserModel.findOneAndUpdate(
-          { _id: Server.UserModel.toObjectId(socket.userModel._id) },
-          { $push: { circuitVotes: circuitId } },
-          { new: true }
-        )
+    try {
+      let circuitVoteIndex = socket.userModel.circuitVotes.findIndex(
+        (el) => el.toString() == circuitId.toString()
       );
-    } else {
-      promises.push(
-        Server.CircuitModel.findOneAndUpdate(
-          { _id: Server.UserModel.toObjectId(circuitId) },
-          { $inc: { upvotes: -1 } },
-          { new: true }
-        ),
-        Server.UserModel.findOneAndUpdate(
-          { _id: Server.UserModel.toObjectId(socket.userModel._id) },
-          { $pull: { circuitVotes: circuitId } },
-          { new: true }
-        )
+      let promises = [];
+      let isUpvoted = circuitVoteIndex < 0;
+      if (isUpvoted) {
+        promises.push(
+          Server.CircuitModel.findOneAndUpdate(
+            { _id: Server.UserModel.toObjectId(circuitId) },
+            { $inc: { upvotes: 1 } },
+            { new: true }
+          ),
+          Server.UserModel.findOneAndUpdate(
+            { _id: Server.UserModel.toObjectId(socket.userModel._id) },
+            { $push: { circuitVotes: circuitId } },
+            { new: true }
+          )
+        );
+      } else {
+        promises.push(
+          Server.CircuitModel.findOneAndUpdate(
+            { _id: Server.UserModel.toObjectId(circuitId) },
+            { $inc: { upvotes: -1 } },
+            { new: true }
+          ),
+          Server.UserModel.findOneAndUpdate(
+            { _id: Server.UserModel.toObjectId(socket.userModel._id) },
+            { $pull: { circuitVotes: circuitId } },
+            { new: true }
+          )
+        );
+      }
+
+      let result = await Promise.all(promises);
+      socket.userModel = result[1];
+
+      Server.infoLogging(
+        "Upvote circuit",
+        "success",
+        socket,
+        circuitId,
+        isUpvoted
       );
+      return { isUpvoted: isUpvoted, result: result };
+    } catch (err) {
+      Server.errorLogging("Upvote circuit", err, socket, circuitId);
     }
-
-    let result = await Promise.all(promises);
-    socket.userModel = result[1];
-
-    return { isUpvoted: isUpvoted, result: result };
   };
 
   Server.UserModel.deleteCircuitVotes = async function () {
     try {
-      await Server.UserModel.updateMany({}, { $set: { circuitVotes: [] } });
+      let ret = await Server.UserModel.updateMany(
+        {},
+        { $set: { circuitVotes: [] } }
+      );
+      Server.infoLogging("Delete circuit votes", "success");
+      return ret;
     } catch (err) {
       Server.errorLogging("Delete circuit votes", err);
     }
@@ -136,10 +152,20 @@ module.exports = function (Server) {
         { new: true }
       );
 
-      socket.userModel = result;
-      return { retInfo: "NFT selection updated", data: { userModel: result } };
+      Server.infoLogging(
+        "Update NFT selection",
+        "success",
+        socket,
+        JSON.stringify(nftSelection)
+      );
+      return result;
     } catch (err) {
-      return { retError: err.message };
+      Server.errorLogging(
+        "Update NFT selection",
+        err,
+        socket,
+        JSON.stringify(nftSelection)
+      );
     }
   };
 
@@ -165,15 +191,16 @@ module.exports = function (Server) {
         },
         { new: true }
       );
-      socket.userModel = result;
-      return {
-        retInfo: koinosAccount
-          ? "Koinos account linked"
-          : "Koinos account unlinked",
-        data: { userModel: result },
-      };
+
+      Server.infoLogging(
+        "Link Koinos account",
+        "success",
+        socket,
+        JSON.stringify(koinosAccount)
+      );
+      return result;
     } catch (err) {
-      return { retError: err };
+      Server.errorLogging("Link Koinos account", err, socket);
     }
   };
 
@@ -181,20 +208,21 @@ module.exports = function (Server) {
     try {
       let user = await Server.UserModel.findOne({ koinosAccount: address });
       if (!user) {
-        return { retError: "User not found" };
+        throw new Error("User not found");
       }
 
       // Add it in the user's NFT list, only if it is not already there
       let nftIndex = user.nfts.findIndex((el) => el.nftId == nft.nftId);
       if (nftIndex < 0) {
         user.nfts.push(nft);
-        await user.save();
-        Server.infoLogging("NFT added", nft.nftId, address);
+        let newUser = await user.save();
+        Server.infoLogging("Add NFT", "success", address, nft.nftId);
+        return newUser;
       } else {
-        Server.errorLogging("NFT already added", nft.nftId, address);
+        throw new Error("NFT already exists");
       }
     } catch (err) {
-      Server.errorLogging("Add NFT", err);
+      Server.errorLogging("Add NFT", err, address, nft.nftId);
     }
   };
 
@@ -202,19 +230,21 @@ module.exports = function (Server) {
     try {
       let user = await Server.UserModel.findOne({ koinosAccount: address });
       if (!user) {
-        return { retError: "User not found" };
+        throw new Error("User not found");
       }
 
       let nftIndex = user.nfts.findIndex((el) => el.nftId == nftId);
       if (nftIndex >= 0) {
         user.nfts.splice(nftIndex, 1);
-        await user.save();
-        Server.infoLogging("NFT deleted", nftId, address);
+        let newUser = await user.save();
+        Server.infoLogging("Delete NFT", "success", address, nftId);
+
+        return newUser;
       } else {
-        Server.errorLogging("NFT not found for deletion", nftId, address);
+        throw new Error("NFT not found for deletion");
       }
     } catch (err) {
-      Server.errorLogging("Delete NFT", err);
+      Server.errorLogging("Delete NFT", err, address, nftId);
     }
   };
 };

@@ -3,24 +3,21 @@ var Server = {
   __dirname: __dirname,
 };
 
-require("./services/httpServer")(Server);
 require("./services/logging")(Server);
+require("./services/httpServer")(Server);
+require("./services/databaseConnection")(Server);
 require("./routes")(Server);
 
-require("./services/dbInit")(Server);
-require("./services/dbDataGetters")(Server);
-
 require("./client/js/crypto/contracts")(Server);
-require("./services/blockchain/blockchainListener")(Server);
+require("./services/blockchainListener")(Server);
 
-require("./services/importGameLogic")(Server);
-require("./services/roomsManagment")(Server);
-require("./services/raceController")(Server);
-require("./services/editorController")(Server);
-require("./services/voteController")(Server);
-
-require("./services/userAuthentication")(Server);
-require("./services/userController")(Server);
+require("./services/controllers/roomController")(Server);
+require("./services/controllers/dataController")(Server);
+require("./services/controllers/raceController")(Server);
+require("./services/controllers/editorController")(Server);
+require("./services/controllers/voteController")(Server);
+require("./services/controllers/authenticationController")(Server);
+require("./services/controllers/userController")(Server);
 
 require("./services/emitters")(Server);
 require("./services/events")(Server);

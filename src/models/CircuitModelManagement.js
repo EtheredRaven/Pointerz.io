@@ -1,4 +1,6 @@
 const { Promise } = require("mongoose");
+const Functions = require("../client/js/game/logic/Functions");
+
 module.exports = function (Server, circuitModel) {
   // Convert strings to object ids
   circuitModel.toObjectId = function (ids) {
@@ -19,6 +21,12 @@ module.exports = function (Server, circuitModel) {
 
     async add(record, replay) {
       return new Promise((resolve, reject) => {
+        Server.infoLogging(
+          "Add in records queue",
+          "success",
+          record.nickname,
+          record.circuitId
+        );
         this.queue.push({ record, replay, resolve, reject });
         this.process();
       });
@@ -72,14 +80,15 @@ module.exports = function (Server, circuitModel) {
 
         await circuit.save();
         Server.infoLogging(
-          "CircuitModel",
-          "saved",
+          "Save record and replay",
+          "success",
+          replay.nickname,
           circuit._id,
-          replay.nickname
+          savedReplay._id
         );
         return ranking; // Return only ranking to match original
       } catch (error) {
-        Server.errorLogging("CircuitModel", "save failed", error);
+        Server.errorLogging("Save record and replay", error);
         throw error;
       }
     }
@@ -89,6 +98,12 @@ module.exports = function (Server, circuitModel) {
       this.processing = true;
 
       const { record, replay, resolve, reject } = this.queue[0];
+      Server.infoLogging(
+        "Process records queue",
+        "success",
+        record.nickname,
+        record.circuitId
+      );
       try {
         const ranking = await this._saveRecord(record, replay);
         resolve(ranking);
@@ -123,89 +138,6 @@ module.exports = function (Server, circuitModel) {
     const queue = Server.circuitQueues.get(circuitId);
     return await queue.add(record, replay);
   };
-
-  // Insert a new replay at its right place in the ordered list
-  /*circuitModel.insertRecordAndReplay = async function (
-    circuitId,
-    record,
-    replay
-  ) {
-    // Lock the document to compute the position
-    let promises = [
-      circuitModel.findOneAndUpdate(
-        { _id: circuitId, locked: false },
-        { $set: { locked: true } }
-      ),
-      new Server.ReplayModel(replay).save(),
-    ];
-    let res = await Promise.all(promises);
-    let circuit = res[0];
-    let savedReplay = res[1];
-
-    // TODO Keep looking for the records while its unlocked -> vérifier que pas de surcharge du serveur -> faire une queue d'attente !
-    while (!circuit) {
-      circuit = await circuitModel.findOneAndUpdate(
-        { _id: circuitId, locked: false },
-        { $set: { locked: true } }
-      );
-    }
-
-    circuit &&
-      Server.infoLogging(
-        "CircuitModel",
-        "locked",
-        circuit._id,
-        savedReplay.nickname
-      );
-
-    record._replayId = savedReplay._id;
-    let ranking = 0;
-    if (circuit.runs.length == 0) {
-      circuit.runs.push(record);
-    } else {
-      // Look for the right position with dichotomy algorithm
-      let nm = 0;
-      let np = circuit.runs.length - 1;
-      while (np - nm > 1) {
-        let n = Math.round((np + nm) / 2);
-        if (circuit.runs[n].runTime < record.runTime) {
-          nm = n;
-        } else {
-          np = n;
-        }
-      }
-
-      // Insert it at the computed position
-      if (circuit.runs[np].runTime < record.runTime) {
-        circuit.runs.push(record);
-        ranking = np + 1;
-      } else if (circuit.runs[nm].runTime > record.runTime) {
-        circuit.runs.unshift(record);
-      } else {
-        circuit.runs.splice(np, 0, record);
-        ranking = np;
-      }
-    }
-
-    // Find the circuit, insert the new run time and unlock it
-    await circuitModel.findOneAndUpdate(
-      { _id: circuitId },
-      {
-        $set: { locked: false },
-        $push: { runs: { $each: [record], $position: ranking } },
-      }
-    );
-    Server.infoLogging(
-      "CircuitModel",
-      "new record saved",
-      circuit._id,
-      savedReplay.nickname,
-      "Rank : " + ranking
-    );
-    Server.infoLogging("CircuitModel", "unlocked", circuit._id);
-
-    return ranking;
-  };*/
 
   // Load a single circuit for a room creation
   circuitModel.getCircuit = async function (
@@ -245,6 +177,11 @@ module.exports = function (Server, circuitModel) {
           ? { $gte: 0 }
           : { $lte: -1 });
     req.push(match);
+
+    req.push({
+      $sort: { campaignPublicationTime: 1 },
+    });
+
     req.push({
       $project: {
         blocks: 1,
@@ -277,14 +214,24 @@ module.exports = function (Server, circuitModel) {
     replay,
     oldRecord
   ) {
-    let promises = [
-      circuitModel.insertRecordAndReplay(circuitId, record, replay),
-    ];
-    if (oldRecord.run) {
-      promises.push(circuitModel.deleteRecord(oldRecord, circuitId));
+    try {
+      let promises = [
+        circuitModel.insertRecordAndReplay(circuitId, record, replay),
+      ];
+      if (oldRecord.run) {
+        promises.push(circuitModel.deleteRecord(oldRecord, circuitId));
+      }
+      let ret = await Promise.all(promises);
+      Server.infoLogging(
+        "Update record",
+        "success",
+        record.nickname,
+        circuitId
+      );
+      return { run: record, ranking: ret[0] };
+    } catch (err) {
+      Server.errorLogging("Update record", err);
     }
-    let ret = await Promise.all(promises);
-    return { run: record, ranking: ret[0] };
   };
 
   // Get a specific record of a specific user
@@ -348,7 +295,7 @@ module.exports = function (Server, circuitModel) {
     );
     let indexes = [];
     while (indexes.length < realUpper) {
-      let r = Server.gameFunctions.getRandomInt(0, pos - 1);
+      let r = Functions.getRandomInt(0, pos - 1);
       if (indexes.indexOf(r) == -1) {
         indexes.push(r);
       }
@@ -356,7 +303,7 @@ module.exports = function (Server, circuitModel) {
 
     // Get the random ranking positions
     while (indexes.length < realUpper + realDown) {
-      let r = Server.gameFunctions.getRandomInt(pos + 1, runsNumber - 1);
+      let r = Functions.getRandomInt(pos + 1, runsNumber - 1);
       if (indexes.indexOf(r) == -1) {
         indexes.push(r);
       }
@@ -416,26 +363,30 @@ module.exports = function (Server, circuitModel) {
 
   // Delete one specified record
   circuitModel.deleteRecord = async function (userRecord, circuitId) {
-    circuitId = circuitModel.toObjectId(circuitId);
-    await Promise.all([
-      Server.ReplayModel.deleteOne({ _id: userRecord.run._replayId }),
-      circuitModel.updateOne(
-        { _id: circuitId },
-        {
-          $pull: {
-            runs: {
-              _id: userRecord.run._id,
+    try {
+      circuitId = circuitModel.toObjectId(circuitId);
+      await Promise.all([
+        Server.ReplayModel.deleteOne({ _id: userRecord.run._replayId }),
+        circuitModel.updateOne(
+          { _id: circuitId },
+          {
+            $pull: {
+              runs: {
+                _id: userRecord.run._id,
+              },
             },
-          },
-        }
-      ),
-    ]);
-    Server.infoLogging(
-      "CircuitModel",
-      "old record deleted",
-      circuitId,
-      userRecord.run.nickname,
-      userRecord.run._replayId
-    );
+          }
+        ),
+      ]);
+      Server.infoLogging(
+        "Delete record",
+        "success",
+        userRecord.run.nickname,
+        circuitId,
+        userRecord.run._replayId
+      );
+    } catch (err) {
+      Server.errorLogging("Delete record", err);
+    }
   };
 };

@@ -6,5 +6,6 @@ module.exports = function (Server) {
   Server.listeningPort = 8081;
   Server.realHttpPort = process.env.PORT || Server.listeningPort;
   httpServer.listen(Server.realHttpPort, () => {});
-  console.log("Server started on port ", Server.realHttpPort);
+
+  Server.infoLogging("Http server started", "", Server.realHttpPort);
 };

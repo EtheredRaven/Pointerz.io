@@ -132,6 +132,10 @@ var app = (function () {
         store.set(value);
         return ret;
     }
+    function split_css_unit(value) {
+        const split = typeof value === 'string' && value.match(/^\s*(-?[\d.]+)([^\s]*)\s*$/);
+        return split ? [parseFloat(split[1]), split[2] || 'px'] : [value, 'px'];
+    }
 
     const is_client = typeof window !== 'undefined';
     let now = is_client
@@ -167,6 +171,12 @@ var app = (function () {
             }
         };
     }
+
+    const globals = (typeof window !== 'undefined'
+        ? window
+        : typeof globalThis !== 'undefined'
+            ? globalThis
+            : global);
     function append(target, node) {
         target.appendChild(node);
     }
@@ -192,7 +202,9 @@ var app = (function () {
         target.insertBefore(node, anchor || null);
     }
     function detach(node) {
-        node.parentNode.removeChild(node);
+        if (node.parentNode) {
+            node.parentNode.removeChild(node);
+        }
     }
     function destroy_each(iterations, detaching) {
         for (let i = 0; i < iterations.length; i += 1) {
@@ -239,6 +251,14 @@ var app = (function () {
         else if (node.getAttribute(attribute) !== value)
             node.setAttribute(attribute, value);
     }
+    /**
+     * List of attributes that should always be set through the attr method,
+     * because updating them through the property setter doesn't work reliably.
+     * In the example of `width`/`height`, the problem is that the setter only
+     * accepts numeric values, but the attribute can also be set to a string like `50%`.
+     * If this list becomes too big, rethink this approach.
+     */
+    const always_set_through_set_attribute = ['width', 'height'];
     function set_attributes(node, attributes) {
         // @ts-ignore
         const descriptors = Object.getOwnPropertyDescriptors(node.__proto__);
@@ -252,7 +272,7 @@ var app = (function () {
             else if (key === '__value') {
                 node.value = node[key] = attributes[key];
             }
-            else if (descriptors[key] && descriptors[key].set) {
+            else if (descriptors[key] && descriptors[key].set && always_set_through_set_attribute.indexOf(key) === -1) {
                 node[key] = attributes[key];
             }
             else {
@@ -275,7 +295,7 @@ var app = (function () {
         input.value = value == null ? '' : value;
     }
     function set_style(node, key, value, important) {
-        if (value === null) {
+        if (value == null) {
             node.style.removeProperty(key);
         }
         else {
@@ -299,7 +319,7 @@ var app = (function () {
         }
         return crossorigin;
     }
-    function add_resize_listener(node, fn) {
+    function add_iframe_resize_listener(node, fn) {
         const computed_style = getComputedStyle(node);
         if (computed_style.position === 'static') {
             node.style.position = 'relative';
@@ -322,6 +342,9 @@ var app = (function () {
             iframe.src = 'about:blank';
             iframe.onload = () => {
                 unsubscribe = listen(iframe.contentWindow, 'resize', fn);
+                // make sure an initial resize event is fired _after_ the iframe is loaded (which is asynchronous)
+                // see https://github.com/sveltejs/svelte/issues/4233
+                fn();
             };
         }
         append(node, iframe);
@@ -356,16 +379,17 @@ var app = (function () {
             if (!this.e) {
                 if (this.is_svg)
                     this.e = svg_element(target.nodeName);
+                /** #7364  target for <template> may be provided as #document-fragment(11) */
                 else
-                    this.e = element(target.nodeName);
-                this.t = target;
+                    this.e = element((target.nodeType === 11 ? 'TEMPLATE' : target.nodeName));
+                this.t = target.tagName !== 'TEMPLATE' ? target : target.content;
                 this.c(html);
             }
             this.i(anchor);
         }
         h(html) {
             this.e.innerHTML = html;
-            this.n = Array.from(this.e.childNodes);
+            this.n = Array.from(this.e.nodeName === 'TEMPLATE' ? this.e.content.childNodes : this.e.childNodes);
         }
         i(anchor) {
             for (let i = 0; i < this.n.length; i += 1) {
@@ -525,18 +549,59 @@ var app = (function () {
             throw new Error('Function called outside component initialization');
         return current_component;
     }
+    /**
+     * Schedules a callback to run immediately before the component is updated after any state change.
+     *
+     * The first time the callback runs will be before the initial `onMount`
+     *
+     * https://svelte.dev/docs#run-time-svelte-beforeupdate
+     */
     function beforeUpdate(fn) {
         get_current_component().$$.before_update.push(fn);
     }
+    /**
+     * The `onMount` function schedules a callback to run as soon as the component has been mounted to the DOM.
+     * It must be called during the component's initialisation (but doesn't need to live *inside* the component;
+     * it can be called from an external module).
+     *
+     * `onMount` does not run inside a [server-side component](/docs#run-time-server-side-component-api).
+     *
+     * https://svelte.dev/docs#run-time-svelte-onmount
+     */
     function onMount(fn) {
         get_current_component().$$.on_mount.push(fn);
     }
+    /**
+     * Schedules a callback to run immediately after the component has been updated.
+     *
+     * The first time the callback runs will be after the initial `onMount`
+     */
     function afterUpdate(fn) {
         get_current_component().$$.after_update.push(fn);
     }
+    /**
+     * Schedules a callback to run immediately before the component is unmounted.
+     *
+     * Out of `onMount`, `beforeUpdate`, `afterUpdate` and `onDestroy`, this is the
+     * only one that runs inside a server-side component.
+     *
+     * https://svelte.dev/docs#run-time-svelte-ondestroy
+     */
     function onDestroy(fn) {
         get_current_component().$$.on_destroy.push(fn);
     }
+    /**
+     * Creates an event dispatcher that can be used to dispatch [component events](/docs#template-syntax-component-directives-on-eventname).
+     * Event dispatchers are functions that can take two arguments: `name` and `detail`.
+     *
+     * Component events created with `createEventDispatcher` create a
+     * [CustomEvent](https://developer.mozilla.org/en-US/docs/Web/API/CustomEvent).
+     * These events do not [bubble](https://developer.mozilla.org/en-US/docs/Learn/JavaScript/Building_blocks/Events#Event_bubbling_and_capture).
+     * The `detail` argument corresponds to the [CustomEvent.detail](https://developer.mozilla.org/en-US/docs/Web/API/CustomEvent/detail)
+     * property and can contain any type of data.
+     *
+     * https://svelte.dev/docs#run-time-svelte-createeventdispatcher
+     */
     function createEventDispatcher() {
         const component = get_current_component();
         return (type, detail, { cancelable = false } = {}) => {
@@ -566,9 +631,9 @@ var app = (function () {
 
     const dirty_components = [];
     const binding_callbacks = [];
-    const render_callbacks = [];
+    let render_callbacks = [];
     const flush_callbacks = [];
-    const resolved_promise = Promise.resolve();
+    const resolved_promise = /* @__PURE__ */ Promise.resolve();
     let update_scheduled = false;
     function schedule_update() {
         if (!update_scheduled) {
@@ -607,15 +672,29 @@ var app = (function () {
     const seen_callbacks = new Set();
     let flushidx = 0; // Do *not* move this inside the flush() function
     function flush() {
+        // Do not reenter flush while dirty components are updated, as this can
+        // result in an infinite loop. Instead, let the inner flush handle it.
+        // Reentrancy is ok afterwards for bindings etc.
+        if (flushidx !== 0) {
+            return;
+        }
         const saved_component = current_component;
         do {
             // first, call beforeUpdate functions
             // and update components
-            while (flushidx < dirty_components.length) {
-                const component = dirty_components[flushidx];
-                flushidx++;
-                set_current_component(component);
-                update(component.$$);
+            try {
+                while (flushidx < dirty_components.length) {
+                    const component = dirty_components[flushidx];
+                    flushidx++;
+                    set_current_component(component);
+                    update(component.$$);
+                }
+            }
+            catch (e) {
+                // reset dirty state to not end up in a deadlocked state and then rethrow
+                dirty_components.length = 0;
+                flushidx = 0;
+                throw e;
             }
             set_current_component(null);
             dirty_components.length = 0;
@@ -651,6 +730,16 @@ var app = (function () {
             $$.fragment && $$.fragment.p($$.ctx, dirty);
             $$.after_update.forEach(add_render_callback);
         }
+    }
+    /**
+     * Useful for example to execute remaining `afterUpdate` callbacks before executing `destroy`.
+     */
+    function flush_render_callbacks(fns) {
+        const filtered = [];
+        const targets = [];
+        render_callbacks.forEach((c) => fns.indexOf(c) === -1 ? filtered.push(c) : targets.push(c));
+        targets.forEach((c) => c());
+        render_callbacks = filtered;
     }
 
     let promise;
@@ -708,7 +797,8 @@ var app = (function () {
     }
     const null_transition = { duration: 0 };
     function create_in_transition(node, fn, params) {
-        let config = fn(node, params);
+        const options = { direction: 'in' };
+        let config = fn(node, params, options);
         let running = false;
         let animation_name;
         let task;
@@ -752,7 +842,7 @@ var app = (function () {
                 started = true;
                 delete_rule(node);
                 if (is_function(config)) {
-                    config = config();
+                    config = config(options);
                     wait().then(go);
                 }
                 else {
@@ -771,7 +861,8 @@ var app = (function () {
         };
     }
     function create_out_transition(node, fn, params) {
-        let config = fn(node, params);
+        const options = { direction: 'out' };
+        let config = fn(node, params, options);
         let running = true;
         let animation_name;
         const group = outros;
@@ -806,7 +897,7 @@ var app = (function () {
         if (is_function(config)) {
             wait().then(() => {
                 // @ts-ignore
-                config = config();
+                config = config(options);
                 go();
             });
         }
@@ -827,7 +918,8 @@ var app = (function () {
         };
     }
     function create_bidirectional_transition(node, fn, params, intro) {
-        let config = fn(node, params);
+        const options = { direction: 'both' };
+        let config = fn(node, params, options);
         let t = intro ? 0 : 1;
         let running_program = null;
         let pending_program = null;
@@ -917,7 +1009,7 @@ var app = (function () {
                 if (is_function(config)) {
                     wait().then(() => {
                         // @ts-ignore
-                        config = config();
+                        config = config(options);
                         go(b);
                     });
                 }
@@ -931,12 +1023,6 @@ var app = (function () {
             }
         };
     }
-
-    const globals = (typeof window !== 'undefined'
-        ? window
-        : typeof globalThis !== 'undefined'
-            ? globalThis
-            : global);
     function outro_and_destroy_block(block, lookup) {
         transition_out(block, 1, 1, () => {
             lookup.delete(block.key);
@@ -956,6 +1042,7 @@ var app = (function () {
         const new_blocks = [];
         const new_lookup = new Map();
         const deltas = new Map();
+        const updates = [];
         i = n;
         while (i--) {
             const child_ctx = get_context(ctx, list, i);
@@ -966,7 +1053,8 @@ var app = (function () {
                 block.c();
             }
             else if (dynamic) {
-                block.p(child_ctx, dirty);
+                // defer updates until all the DOM shuffling is done
+                updates.push(() => block.p(child_ctx, dirty));
             }
             new_lookup.set(key, new_blocks[i] = block);
             if (key in old_indexes)
@@ -1019,6 +1107,7 @@ var app = (function () {
         }
         while (n)
             insert(new_blocks[n - 1]);
+        run_all(updates);
         return new_blocks;
     }
     function validate_each_keys(ctx, list, get_context, get_key) {
@@ -1080,14 +1169,17 @@ var app = (function () {
         block && block.c();
     }
     function mount_component(component, target, anchor, customElement) {
-        const { fragment, on_mount, on_destroy, after_update } = component.$$;
+        const { fragment, after_update } = component.$$;
         fragment && fragment.m(target, anchor);
         if (!customElement) {
             // onMount happens before the initial afterUpdate
             add_render_callback(() => {
-                const new_on_destroy = on_mount.map(run).filter(is_function);
-                if (on_destroy) {
-                    on_destroy.push(...new_on_destroy);
+                const new_on_destroy = component.$$.on_mount.map(run).filter(is_function);
+                // if the component was destroyed immediately
+                // it will update the `$$.on_destroy` reference to `null`.
+                // the destructured on_destroy may still reference to the old array
+                if (component.$$.on_destroy) {
+                    component.$$.on_destroy.push(...new_on_destroy);
                 }
                 else {
                     // Edge case - component was destroyed immediately,
@@ -1102,6 +1194,7 @@ var app = (function () {
     function destroy_component(component, detaching) {
         const $$ = component.$$;
         if ($$.fragment !== null) {
+            flush_render_callbacks($$.after_update);
             run_all($$.on_destroy);
             $$.fragment && $$.fragment.d(detaching);
             // TODO null out other refs, including component.$$ (but need to
@@ -1123,7 +1216,7 @@ var app = (function () {
         set_current_component(component);
         const $$ = component.$$ = {
             fragment: null,
-            ctx: null,
+            ctx: [],
             // state
             props,
             update: noop,
@@ -1188,6 +1281,9 @@ var app = (function () {
             this.$destroy = noop;
         }
         $on(type, callback) {
+            if (!is_function(callback)) {
+                return noop;
+            }
             const callbacks = (this.$$.callbacks[type] || (this.$$.callbacks[type] = []));
             callbacks.push(callback);
             return () => {
@@ -1206,7 +1302,7 @@ var app = (function () {
     }
 
     function dispatch_dev(type, detail) {
-        document.dispatchEvent(custom_event(type, Object.assign({ version: '3.50.1' }, detail), { bubbles: true }));
+        document.dispatchEvent(custom_event(type, Object.assign({ version: '3.59.2' }, detail), { bubbles: true }));
     }
     function append_dev(target, node) {
         dispatch_dev('SvelteDOMInsert', { target, node });
@@ -1220,12 +1316,14 @@ var app = (function () {
         dispatch_dev('SvelteDOMRemove', { node });
         detach(node);
     }
-    function listen_dev(node, event, handler, options, has_prevent_default, has_stop_propagation) {
+    function listen_dev(node, event, handler, options, has_prevent_default, has_stop_propagation, has_stop_immediate_propagation) {
         const modifiers = options === true ? ['capture'] : options ? Array.from(Object.keys(options)) : [];
         if (has_prevent_default)
             modifiers.push('preventDefault');
         if (has_stop_propagation)
             modifiers.push('stopPropagation');
+        if (has_stop_immediate_propagation)
+            modifiers.push('stopImmediatePropagation');
         dispatch_dev('SvelteDOMAddEventListener', { node, event, handler, modifiers });
         const dispose = listen(node, event, handler, options);
         return () => {
@@ -1246,7 +1344,7 @@ var app = (function () {
     }
     function set_data_dev(text, data) {
         data = '' + data;
-        if (text.wholeText === data)
+        if (text.data === data)
             return;
         dispatch_dev('SvelteDOMSetData', { node: text, data });
         text.data = data;
@@ -1264,6 +1362,25 @@ var app = (function () {
         for (const slot_key of Object.keys(slot)) {
             if (!~keys.indexOf(slot_key)) {
                 console.warn(`<${name}> received an unexpected slot "${slot_key}".`);
+            }
+        }
+    }
+    function construct_svelte_component_dev(component, props) {
+        const error_message = 'this={...} of <svelte:component> should specify a Svelte component.';
+        try {
+            const instance = new component(props);
+            if (!instance.$$ || !instance.$set || !instance.$on || !instance.$destroy) {
+                throw new Error(error_message);
+            }
+            return instance;
+        }
+        catch (err) {
+            const { message } = err;
+            if (typeof message === 'string' && message.indexOf('is not a constructor') !== -1) {
+                throw new Error(error_message);
+            }
+            else {
+                throw err;
             }
         }
     }
@@ -1383,7 +1500,7 @@ var app = (function () {
     /**
      * Creates a `Readable` store that allows reading by subscription.
      * @param value initial value
-     * @param {StartStopNotifier}start start and stop notifications for subscriptions
+     * @param {StartStopNotifier} [start]
      */
     function readable(value, start) {
         return {
@@ -1393,7 +1510,7 @@ var app = (function () {
     /**
      * Create a `Writable` store that allows both updating and reading by subscription.
      * @param {*=}value initial value
-     * @param {StartStopNotifier=}start start and stop notifications for subscriptions
+     * @param {StartStopNotifier=} start
      */
     function writable(value, start = noop) {
         let stop;
@@ -1428,7 +1545,7 @@ var app = (function () {
             run(value);
             return () => {
                 subscribers.delete(subscriber);
-                if (subscribers.size === 0) {
+                if (subscribers.size === 0 && stop) {
                     stop();
                     stop = null;
                 }
@@ -1443,7 +1560,7 @@ var app = (function () {
             : stores;
         const auto = fn.length < 2;
         return readable(initial_value, (set) => {
-            let inited = false;
+            let started = false;
             const values = [];
             let pending = 0;
             let cleanup = noop;
@@ -1463,17 +1580,21 @@ var app = (function () {
             const unsubscribers = stores_array.map((store, i) => subscribe(store, (value) => {
                 values[i] = value;
                 pending &= ~(1 << i);
-                if (inited) {
+                if (started) {
                     sync();
                 }
             }, () => {
                 pending |= (1 << i);
             }));
-            inited = true;
+            started = true;
             sync();
             return function stop() {
                 run_all(unsubscribers);
                 cleanup();
+                // We need to set this to false because callbacks can still happen despite having unsubscribed:
+                // Callbacks might already be placed in the queue which doesn't know it should no longer
+                // invoke this derived store.
+                started = false;
             };
         });
     }
@@ -1505,9 +1626,9 @@ var app = (function () {
     	};
     }
 
-    /* node_modules\svelte-spa-router\Router.svelte generated by Svelte v3.50.1 */
+    /* node_modules\svelte-spa-router\Router.svelte generated by Svelte v3.59.2 */
 
-    const { Error: Error_1, Object: Object_1$2, console: console_1$2 } = globals;
+    const { Error: Error_1, Object: Object_1$2, console: console_1$1 } = globals;
 
     // (267:0) {:else}
     function create_else_block$9(ctx) {
@@ -1531,7 +1652,7 @@ var app = (function () {
     	}
 
     	if (switch_value) {
-    		switch_instance = new switch_value(switch_props());
+    		switch_instance = construct_svelte_component_dev(switch_value, switch_props());
     		switch_instance.$on("routeEvent", /*routeEvent_handler_1*/ ctx[7]);
     	}
 
@@ -1541,10 +1662,7 @@ var app = (function () {
     			switch_instance_anchor = empty();
     		},
     		m: function mount(target, anchor) {
-    			if (switch_instance) {
-    				mount_component(switch_instance, target, anchor);
-    			}
-
+    			if (switch_instance) mount_component(switch_instance, target, anchor);
     			insert_dev(target, switch_instance_anchor, anchor);
     			current = true;
     		},
@@ -1553,7 +1671,7 @@ var app = (function () {
     			? get_spread_update(switch_instance_spread_levels, [get_spread_object(/*props*/ ctx[2])])
     			: {};
 
-    			if (switch_value !== (switch_value = /*component*/ ctx[0])) {
+    			if (dirty & /*component*/ 1 && switch_value !== (switch_value = /*component*/ ctx[0])) {
     				if (switch_instance) {
     					group_outros();
     					const old_component = switch_instance;
@@ -1566,7 +1684,7 @@ var app = (function () {
     				}
 
     				if (switch_value) {
-    					switch_instance = new switch_value(switch_props());
+    					switch_instance = construct_svelte_component_dev(switch_value, switch_props());
     					switch_instance.$on("routeEvent", /*routeEvent_handler_1*/ ctx[7]);
     					create_component(switch_instance.$$.fragment);
     					transition_in(switch_instance.$$.fragment, 1);
@@ -1626,7 +1744,7 @@ var app = (function () {
     	}
 
     	if (switch_value) {
-    		switch_instance = new switch_value(switch_props());
+    		switch_instance = construct_svelte_component_dev(switch_value, switch_props());
     		switch_instance.$on("routeEvent", /*routeEvent_handler*/ ctx[6]);
     	}
 
@@ -1636,10 +1754,7 @@ var app = (function () {
     			switch_instance_anchor = empty();
     		},
     		m: function mount(target, anchor) {
-    			if (switch_instance) {
-    				mount_component(switch_instance, target, anchor);
-    			}
-
+    			if (switch_instance) mount_component(switch_instance, target, anchor);
     			insert_dev(target, switch_instance_anchor, anchor);
     			current = true;
     		},
@@ -1651,7 +1766,7 @@ var app = (function () {
     				])
     			: {};
 
-    			if (switch_value !== (switch_value = /*component*/ ctx[0])) {
+    			if (dirty & /*component*/ 1 && switch_value !== (switch_value = /*component*/ ctx[0])) {
     				if (switch_instance) {
     					group_outros();
     					const old_component = switch_instance;
@@ -1664,7 +1779,7 @@ var app = (function () {
     				}
 
     				if (switch_value) {
-    					switch_instance = new switch_value(switch_props());
+    					switch_instance = construct_svelte_component_dev(switch_value, switch_props());
     					switch_instance.$on("routeEvent", /*routeEvent_handler*/ ctx[6]);
     					create_component(switch_instance.$$.fragment);
     					transition_in(switch_instance.$$.fragment, 1);
@@ -2293,7 +2408,7 @@ var app = (function () {
     	const writable_props = ['routes', 'prefix', 'restoreScrollState'];
 
     	Object_1$2.keys($$props).forEach(key => {
-    		if (!~writable_props.indexOf(key) && key.slice(0, 2) !== '$$' && key !== 'slot') console_1$2.warn(`<Router> was created with unknown prop '${key}'`);
+    		if (!~writable_props.indexOf(key) && key.slice(0, 2) !== '$$' && key !== 'slot') console_1$1.warn(`<Router> was created with unknown prop '${key}'`);
     	});
 
     	function routeEvent_handler(event) {
@@ -2452,38 +2567,43 @@ var app = (function () {
         const target_opacity = +style.opacity;
         const transform = style.transform === 'none' ? '' : style.transform;
         const od = target_opacity * (1 - opacity);
+        const [xValue, xUnit] = split_css_unit(x);
+        const [yValue, yUnit] = split_css_unit(y);
         return {
             delay,
             duration,
             easing,
             css: (t, u) => `
-			transform: ${transform} translate(${(1 - t) * x}px, ${(1 - t) * y}px);
+			transform: ${transform} translate(${(1 - t) * xValue}${xUnit}, ${(1 - t) * yValue}${yUnit});
 			opacity: ${target_opacity - (od * u)}`
         };
     }
-    function slide(node, { delay = 0, duration = 400, easing = cubicOut } = {}) {
+    function slide(node, { delay = 0, duration = 400, easing = cubicOut, axis = 'y' } = {}) {
         const style = getComputedStyle(node);
         const opacity = +style.opacity;
-        const height = parseFloat(style.height);
-        const padding_top = parseFloat(style.paddingTop);
-        const padding_bottom = parseFloat(style.paddingBottom);
-        const margin_top = parseFloat(style.marginTop);
-        const margin_bottom = parseFloat(style.marginBottom);
-        const border_top_width = parseFloat(style.borderTopWidth);
-        const border_bottom_width = parseFloat(style.borderBottomWidth);
+        const primary_property = axis === 'y' ? 'height' : 'width';
+        const primary_property_value = parseFloat(style[primary_property]);
+        const secondary_properties = axis === 'y' ? ['top', 'bottom'] : ['left', 'right'];
+        const capitalized_secondary_properties = secondary_properties.map((e) => `${e[0].toUpperCase()}${e.slice(1)}`);
+        const padding_start_value = parseFloat(style[`padding${capitalized_secondary_properties[0]}`]);
+        const padding_end_value = parseFloat(style[`padding${capitalized_secondary_properties[1]}`]);
+        const margin_start_value = parseFloat(style[`margin${capitalized_secondary_properties[0]}`]);
+        const margin_end_value = parseFloat(style[`margin${capitalized_secondary_properties[1]}`]);
+        const border_width_start_value = parseFloat(style[`border${capitalized_secondary_properties[0]}Width`]);
+        const border_width_end_value = parseFloat(style[`border${capitalized_secondary_properties[1]}Width`]);
         return {
             delay,
             duration,
             easing,
             css: t => 'overflow: hidden;' +
                 `opacity: ${Math.min(t * 20, 1) * opacity};` +
-                `height: ${t * height}px;` +
-                `padding-top: ${t * padding_top}px;` +
-                `padding-bottom: ${t * padding_bottom}px;` +
-                `margin-top: ${t * margin_top}px;` +
-                `margin-bottom: ${t * margin_bottom}px;` +
-                `border-top-width: ${t * border_top_width}px;` +
-                `border-bottom-width: ${t * border_bottom_width}px;`
+                `${primary_property}: ${t * primary_property_value}px;` +
+                `padding-${secondary_properties[0]}: ${t * padding_start_value}px;` +
+                `padding-${secondary_properties[1]}: ${t * padding_end_value}px;` +
+                `margin-${secondary_properties[0]}: ${t * margin_start_value}px;` +
+                `margin-${secondary_properties[1]}: ${t * margin_end_value}px;` +
+                `border-${secondary_properties[0]}-width: ${t * border_width_start_value}px;` +
+                `border-${secondary_properties[1]}-width: ${t * border_width_end_value}px;`
         };
     }
     function scale(node, { delay = 0, duration = 400, easing = cubicOut, start = 0, opacity = 0 } = {}) {
@@ -2543,7 +2663,7 @@ var app = (function () {
       },
     };
 
-    /* src\client\svelte\components\ui\TextBlock.svelte generated by Svelte v3.50.1 */
+    /* src\client\svelte\components\ui\TextBlock.svelte generated by Svelte v3.59.2 */
     const file$I = "src\\client\\svelte\\components\\ui\\TextBlock.svelte";
 
     function create_fragment$K(ctx) {
@@ -2578,7 +2698,7 @@ var app = (function () {
     			current = true;
 
     			if (!mounted) {
-    				dispose = listen_dev(div, "click", /*click_handler*/ ctx[13], false, false, false);
+    				dispose = listen_dev(div, "click", /*click_handler*/ ctx[13], false, false, false, false);
     				mounted = true;
     			}
     		},
@@ -2613,6 +2733,7 @@ var app = (function () {
     			transition_in(default_slot, local);
 
     			add_render_callback(() => {
+    				if (!current) return;
     				if (!div_transition) div_transition = create_bidirectional_transition(div, slide, /*slideTransition*/ ctx[2], true);
     				div_transition.run(1);
     			});
@@ -2853,7 +2974,7 @@ var app = (function () {
     	}
     }
 
-    /* src\client\svelte\components\ui\CellTitle.svelte generated by Svelte v3.50.1 */
+    /* src\client\svelte\components\ui\CellTitle.svelte generated by Svelte v3.59.2 */
     const file$H = "src\\client\\svelte\\components\\ui\\CellTitle.svelte";
 
     // (11:2) {#if imagePath}
@@ -3062,6 +3183,13 @@ var app = (function () {
     	let { small = false } = $$props;
     	let { noMargins = false } = $$props;
     	let { style = "" } = $$props;
+
+    	$$self.$$.on_mount.push(function () {
+    		if (color === undefined && !('color' in $$props || $$self.$$.bound[$$self.$$.props['color']])) {
+    			console.warn("<CellTitle> was created without expected prop 'color'");
+    		}
+    	});
+
     	const writable_props = ['imagePath', 'color', 'small', 'noMargins', 'style'];
 
     	Object.keys($$props).forEach(key => {
@@ -3119,13 +3247,6 @@ var app = (function () {
     			options,
     			id: create_fragment$J.name
     		});
-
-    		const { ctx } = this.$$;
-    		const props = options.props || {};
-
-    		if (/*color*/ ctx[1] === undefined && !('color' in props)) {
-    			console.warn("<CellTitle> was created without expected prop 'color'");
-    		}
     	}
 
     	get imagePath() {
@@ -3169,7 +3290,7 @@ var app = (function () {
     	}
     }
 
-    /* src\client\svelte\components\ui\Cell.svelte generated by Svelte v3.50.1 */
+    /* src\client\svelte\components\ui\Cell.svelte generated by Svelte v3.59.2 */
     const file$G = "src\\client\\svelte\\components\\ui\\Cell.svelte";
 
     // (27:2) {#if title}
@@ -3567,7 +3688,7 @@ var app = (function () {
     	}
     }
 
-    /* src\client\svelte\components\ui\ClosableDisplay.svelte generated by Svelte v3.50.1 */
+    /* src\client\svelte\components\ui\ClosableDisplay.svelte generated by Svelte v3.59.2 */
     const file$F = "src\\client\\svelte\\components\\ui\\ClosableDisplay.svelte";
 
     // (33:0) {#if displayedText}
@@ -3612,6 +3733,7 @@ var app = (function () {
     			transition_in(cell.$$.fragment, local);
 
     			add_render_callback(() => {
+    				if (!current) return;
     				if (!div_transition) div_transition = create_bidirectional_transition(div, slide, {}, true);
     				div_transition.run(1);
     			});
@@ -3710,7 +3832,7 @@ var app = (function () {
     			insert_dev(target, img, anchor);
 
     			if (!mounted) {
-    				dispose = listen_dev(img, "click", /*click_handler*/ ctx[6], false, false, false);
+    				dispose = listen_dev(img, "click", /*click_handler*/ ctx[6], false, false, false, false);
     				mounted = true;
     			}
     		},
@@ -3909,6 +4031,12 @@ var app = (function () {
     		$$invalidate(0, displayedText = false);
     	}
 
+    	$$self.$$.on_mount.push(function () {
+    		if (sound === undefined && !('sound' in $$props || $$self.$$.bound[$$self.$$.props['sound']])) {
+    			console.warn("<ClosableDisplay> was created without expected prop 'sound'");
+    		}
+    	});
+
     	const writable_props = ['color', 'width', 'imagePath', 'displayedText', 'sound'];
 
     	Object.keys($$props).forEach(key => {
@@ -3982,13 +4110,6 @@ var app = (function () {
     			options,
     			id: create_fragment$H.name
     		});
-
-    		const { ctx } = this.$$;
-    		const props = options.props || {};
-
-    		if (/*sound*/ ctx[5] === undefined && !('sound' in props)) {
-    			console.warn("<ClosableDisplay> was created without expected prop 'sound'");
-    		}
     	}
 
     	get color() {
@@ -4032,7 +4153,7 @@ var app = (function () {
     	}
     }
 
-    /* src\client\svelte\components\ui\PointerzButton.svelte generated by Svelte v3.50.1 */
+    /* src\client\svelte\components\ui\PointerzButton.svelte generated by Svelte v3.59.2 */
     const file$E = "src\\client\\svelte\\components\\ui\\PointerzButton.svelte";
 
     // (48:4) {#if imagePath}
@@ -4131,7 +4252,7 @@ var app = (function () {
     			current = true;
 
     			if (!mounted) {
-    				dispose = listen_dev(button, "mousedown", /*proceedClick*/ ctx[15], false, false, false);
+    				dispose = listen_dev(button, "mousedown", /*proceedClick*/ ctx[15], false, false, false, false);
     				mounted = true;
     			}
     		},
@@ -4496,7 +4617,7 @@ var app = (function () {
     	}
     }
 
-    /* src\client\svelte\components\ui\PointerzModal.svelte generated by Svelte v3.50.1 */
+    /* src\client\svelte\components\ui\PointerzModal.svelte generated by Svelte v3.59.2 */
     const file$D = "src\\client\\svelte\\components\\ui\\PointerzModal.svelte";
     const get_confirm_slot_changes$1 = dirty => ({});
     const get_confirm_slot_context$1 = ctx => ({});
@@ -4590,7 +4711,7 @@ var app = (function () {
     			current = true;
 
     			if (!mounted) {
-    				dispose = listen_dev(span2, "click", /*callCancelFunction*/ ctx[7], false, false, false);
+    				dispose = listen_dev(span2, "click", /*callCancelFunction*/ ctx[7], false, false, false, false);
     				mounted = true;
     			}
     		},
@@ -4659,12 +4780,14 @@ var app = (function () {
     			transition_in(if_block);
 
     			add_render_callback(() => {
+    				if (!current) return;
     				if (div2_outro) div2_outro.end(1);
     				div2_intro = create_in_transition(div2, fly, { y: -10, delay: 200, duration: 200 });
     				div2_intro.start();
     			});
 
     			add_render_callback(() => {
+    				if (!current) return;
     				if (div3_outro) div3_outro.end(1);
     				div3_intro = create_in_transition(div3, fade, { duration: 200 });
     				div3_intro.start();
@@ -4860,7 +4983,7 @@ var app = (function () {
     			current = true;
 
     			if (!mounted) {
-    				dispose = listen_dev(button, "click", /*callCancelFunction*/ ctx[7], false, false, false);
+    				dispose = listen_dev(button, "click", /*callCancelFunction*/ ctx[7], false, false, false, false);
     				mounted = true;
     			}
     		},
@@ -4970,7 +5093,7 @@ var app = (function () {
     			current = true;
 
     			if (!mounted) {
-    				dispose = listen_dev(button, "click", /*callConfirmFunction*/ ctx[6], false, false, false);
+    				dispose = listen_dev(button, "click", /*callConfirmFunction*/ ctx[6], false, false, false, false);
     				mounted = true;
     			}
     		},
@@ -5315,7 +5438,7 @@ var app = (function () {
     	}
     }
 
-    /* src\client\svelte\components\ui\PointerzConfirm.svelte generated by Svelte v3.50.1 */
+    /* src\client\svelte\components\ui\PointerzConfirm.svelte generated by Svelte v3.59.2 */
     const file$C = "src\\client\\svelte\\components\\ui\\PointerzConfirm.svelte";
     const get_cancel_slot_changes = dirty => ({});
     const get_cancel_slot_context = ctx => ({ confirm: /*confirm*/ ctx[6] });
@@ -5431,8 +5554,8 @@ var app = (function () {
 
     			if (!mounted) {
     				dispose = [
-    					listen_dev(button0, "mousedown", /*callFunction*/ ctx[4], false, false, false),
-    					listen_dev(button1, "mousedown", /*callCancelFunction*/ ctx[5], false, false, false)
+    					listen_dev(button0, "mousedown", /*callFunction*/ ctx[4], false, false, false, false),
+    					listen_dev(button1, "mousedown", /*callCancelFunction*/ ctx[5], false, false, false, false)
     				];
 
     				mounted = true;
@@ -5519,12 +5642,14 @@ var app = (function () {
     			transition_in(cancel_slot_or_fallback, local);
 
     			add_render_callback(() => {
+    				if (!current) return;
     				if (div2_outro) div2_outro.end(1);
     				div2_intro = create_in_transition(div2, fly, { y: -10, delay: 200, duration: 200 });
     				div2_intro.start();
     			});
 
     			add_render_callback(() => {
+    				if (!current) return;
     				if (div3_outro) div3_outro.end(1);
     				div3_intro = create_in_transition(div3, fade, { duration: 200 });
     				div3_intro.start();
@@ -5914,7 +6039,7 @@ var app = (function () {
     	}
     }
 
-    /* src\client\svelte\components\ui\Label.svelte generated by Svelte v3.50.1 */
+    /* src\client\svelte\components\ui\Label.svelte generated by Svelte v3.59.2 */
     const file$B = "src\\client\\svelte\\components\\ui\\Label.svelte";
 
     // (7:2) {#if label}
@@ -6053,6 +6178,13 @@ var app = (function () {
     	let { $$slots: slots = {}, $$scope } = $$props;
     	validate_slots('Label', slots, ['default']);
     	let { label } = $$props;
+
+    	$$self.$$.on_mount.push(function () {
+    		if (label === undefined && !('label' in $$props || $$self.$$.bound[$$self.$$.props['label']])) {
+    			console.warn("<Label> was created without expected prop 'label'");
+    		}
+    	});
+
     	const writable_props = ['label'];
 
     	Object.keys($$props).forEach(key => {
@@ -6088,13 +6220,6 @@ var app = (function () {
     			options,
     			id: create_fragment$D.name
     		});
-
-    		const { ctx } = this.$$;
-    		const props = options.props || {};
-
-    		if (/*label*/ ctx[0] === undefined && !('label' in props)) {
-    			console.warn("<Label> was created without expected prop 'label'");
-    		}
     	}
 
     	get label() {
@@ -6106,7 +6231,7 @@ var app = (function () {
     	}
     }
 
-    /* src\client\svelte\components\ui\PointerzInput.svelte generated by Svelte v3.50.1 */
+    /* src\client\svelte\components\ui\PointerzInput.svelte generated by Svelte v3.59.2 */
     const file$A = "src\\client\\svelte\\components\\ui\\PointerzInput.svelte";
 
     // (38:27) 
@@ -6133,7 +6258,7 @@ var app = (function () {
     			if (!mounted) {
     				dispose = [
     					listen_dev(input, "input", /*input_input_handler_2*/ ctx[9]),
-    					listen_dev(input, "change", /*forwardChangeEvent*/ ctx[6], false, false, false)
+    					listen_dev(input, "change", /*forwardChangeEvent*/ ctx[6], false, false, false, false)
     				];
 
     				mounted = true;
@@ -6198,7 +6323,7 @@ var app = (function () {
     			if (!mounted) {
     				dispose = [
     					listen_dev(input, "input", /*input_input_handler_1*/ ctx[8]),
-    					listen_dev(input, "change", /*forwardChangeEvent*/ ctx[6], false, false, false)
+    					listen_dev(input, "change", /*forwardChangeEvent*/ ctx[6], false, false, false, false)
     				];
 
     				mounted = true;
@@ -6263,7 +6388,7 @@ var app = (function () {
     			if (!mounted) {
     				dispose = [
     					listen_dev(input, "input", /*input_input_handler*/ ctx[7]),
-    					listen_dev(input, "change", /*forwardChangeEvent*/ ctx[6], false, false, false)
+    					listen_dev(input, "change", /*forwardChangeEvent*/ ctx[6], false, false, false, false)
     				];
 
     				mounted = true;
@@ -6433,6 +6558,13 @@ var app = (function () {
     	let { type = "text" } = $$props;
     	let { editorInput = false } = $$props;
     	let { label } = $$props;
+
+    	$$self.$$.on_mount.push(function () {
+    		if (label === undefined && !('label' in $$props || $$self.$$.bound[$$self.$$.props['label']])) {
+    			console.warn("<PointerzInput> was created without expected prop 'label'");
+    		}
+    	});
+
     	const writable_props = ['value', 'maxlength', 'placeholder', 'type', 'editorInput', 'label'];
 
     	Object.keys($$props).forEach(key => {
@@ -6523,13 +6655,6 @@ var app = (function () {
     			options,
     			id: create_fragment$C.name
     		});
-
-    		const { ctx } = this.$$;
-    		const props = options.props || {};
-
-    		if (/*label*/ ctx[5] === undefined && !('label' in props)) {
-    			console.warn("<PointerzInput> was created without expected prop 'label'");
-    		}
     	}
 
     	get value() {
@@ -8632,7 +8757,7 @@ var app = (function () {
         encode: encode
     });
 
-    /* src\client\svelte\components\ui\KoinosWallet.svelte generated by Svelte v3.50.1 */
+    /* src\client\svelte\components\ui\KoinosWallet.svelte generated by Svelte v3.59.2 */
     const file$z = "src\\client\\svelte\\components\\ui\\KoinosWallet.svelte";
 
     // (151:2) {:else}
@@ -9294,7 +9419,7 @@ var app = (function () {
     			current = true;
 
     			if (!mounted) {
-    				dispose = listen_dev(span0, "click", /*copyPrivateKey*/ ctx[8], false, false, false);
+    				dispose = listen_dev(span0, "click", /*copyPrivateKey*/ ctx[8], false, false, false, false);
     				mounted = true;
     			}
     		},
@@ -9827,7 +9952,7 @@ var app = (function () {
     	}
     }
 
-    /* src\client\svelte\pages\AppLayout.svelte generated by Svelte v3.50.1 */
+    /* src\client\svelte\pages\AppLayout.svelte generated by Svelte v3.59.2 */
     const file$y = "src\\client\\svelte\\pages\\AppLayout.svelte";
 
     // (21:2) {#if $loggedIn}
@@ -10082,6 +10207,7 @@ var app = (function () {
     			transition_in(default_slot, local);
 
     			add_render_callback(() => {
+    				if (!current) return;
     				if (div3_outro) div3_outro.end(1);
     				div3_intro = create_in_transition(div3, fade, { delay: 400, duration: 400 });
     				div3_intro.start();
@@ -10169,7 +10295,7 @@ var app = (function () {
     	}
     }
 
-    /* src\client\svelte\components\ui\FlexContainer.svelte generated by Svelte v3.50.1 */
+    /* src\client\svelte\components\ui\FlexContainer.svelte generated by Svelte v3.59.2 */
 
     const file$x = "src\\client\\svelte\\components\\ui\\FlexContainer.svelte";
 
@@ -10335,7 +10461,7 @@ var app = (function () {
     	}
     }
 
-    /* src\client\svelte\components\ui\PointerzTable.svelte generated by Svelte v3.50.1 */
+    /* src\client\svelte\components\ui\PointerzTable.svelte generated by Svelte v3.59.2 */
 
     const file$w = "src\\client\\svelte\\components\\ui\\PointerzTable.svelte";
 
@@ -10400,7 +10526,9 @@ var app = (function () {
     		},
     		m: function mount(target, anchor) {
     			for (let i = 0; i < each_blocks.length; i += 1) {
-    				each_blocks[i].m(target, anchor);
+    				if (each_blocks[i]) {
+    					each_blocks[i].m(target, anchor);
+    				}
     			}
 
     			insert_dev(target, each_1_anchor, anchor);
@@ -10520,7 +10648,9 @@ var app = (function () {
     			insert_dev(target, tr, anchor);
 
     			for (let i = 0; i < each_blocks.length; i += 1) {
-    				each_blocks[i].m(tr, null);
+    				if (each_blocks[i]) {
+    					each_blocks[i].m(tr, null);
+    				}
     			}
 
     			append_dev(tr, t);
@@ -10706,7 +10836,7 @@ var app = (function () {
     	}
     }
 
-    /* src\client\svelte\components\ui\BackButton.svelte generated by Svelte v3.50.1 */
+    /* src\client\svelte\components\ui\BackButton.svelte generated by Svelte v3.59.2 */
     const file$v = "src\\client\\svelte\\components\\ui\\BackButton.svelte";
 
     function create_fragment$x(ctx) {
@@ -10741,7 +10871,7 @@ var app = (function () {
     			append_dev(div0, img);
 
     			if (!mounted) {
-    				dispose = listen_dev(div1, "click", /*goBackWithSound*/ ctx[0], false, false, false);
+    				dispose = listen_dev(div1, "click", /*goBackWithSound*/ ctx[0], false, false, false, false);
     				mounted = true;
     			}
     		},
@@ -10849,7 +10979,7 @@ var app = (function () {
     	}
     }
 
-    /* src\client\svelte\components\ui\OfflineRedirect.svelte generated by Svelte v3.50.1 */
+    /* src\client\svelte\components\ui\OfflineRedirect.svelte generated by Svelte v3.59.2 */
 
     function create_fragment$w(ctx) {
     	let current;
@@ -10961,7 +11091,7 @@ var app = (function () {
     	}
     }
 
-    /* src\client\svelte\pages\CampaignMenu.svelte generated by Svelte v3.50.1 */
+    /* src\client\svelte\pages\CampaignMenu.svelte generated by Svelte v3.59.2 */
     const file$u = "src\\client\\svelte\\pages\\CampaignMenu.svelte";
 
     function get_each_context$a(ctx, list, i) {
@@ -11172,7 +11302,9 @@ var app = (function () {
     		},
     		m: function mount(target, anchor) {
     			for (let i = 0; i < each_blocks.length; i += 1) {
-    				each_blocks[i].m(target, anchor);
+    				if (each_blocks[i]) {
+    					each_blocks[i].m(target, anchor);
+    				}
     			}
 
     			insert_dev(target, each_1_anchor, anchor);
@@ -11283,6 +11415,7 @@ var app = (function () {
     			transition_in(flexcontainer.$$.fragment, local);
 
     			add_render_callback(() => {
+    				if (!current) return;
     				if (!div_transition) div_transition = create_bidirectional_transition(div, slide, {}, true);
     				div_transition.run(1);
     			});
@@ -11780,6 +11913,7 @@ var app = (function () {
     			transition_in(flexcontainer.$$.fragment, local);
 
     			add_render_callback(() => {
+    				if (!current) return;
     				if (div_outro) div_outro.end(1);
     				div_intro = create_in_transition(div, fly, { delay: 400, duration: 400 });
     				div_intro.start();
@@ -12060,7 +12194,7 @@ var app = (function () {
     	}
     }
 
-    /* src\client\svelte\pages\PrivateMenu.svelte generated by Svelte v3.50.1 */
+    /* src\client\svelte\pages\PrivateMenu.svelte generated by Svelte v3.59.2 */
 
     const { Object: Object_1$1 } = globals;
     const file$t = "src\\client\\svelte\\pages\\PrivateMenu.svelte";
@@ -12151,7 +12285,9 @@ var app = (function () {
     			insert_dev(target, div, anchor);
 
     			for (let i = 0; i < each_blocks.length; i += 1) {
-    				each_blocks[i].m(div, null);
+    				if (each_blocks[i]) {
+    					each_blocks[i].m(div, null);
+    				}
     			}
 
     			current = true;
@@ -12185,6 +12321,7 @@ var app = (function () {
     			if (current) return;
 
     			add_render_callback(() => {
+    				if (!current) return;
     				if (div_outro) div_outro.end(1);
     				div_intro = create_in_transition(div, fade, { delay: 400, duration: 400 });
     				div_intro.start();
@@ -12322,6 +12459,7 @@ var app = (function () {
     			transition_in(pointerzbutton2.$$.fragment, local);
 
     			add_render_callback(() => {
+    				if (!current) return;
     				if (div_outro) div_outro.end(1);
     				div_intro = create_in_transition(div, fade, { delay: 400, duration: 400 });
     				div_intro.start();
@@ -12408,7 +12546,7 @@ var app = (function () {
     			append_dev(div1, t3);
 
     			if (!mounted) {
-    				dispose = listen_dev(div1, "click", click_handler, false, false, false);
+    				dispose = listen_dev(div1, "click", click_handler, false, false, false, false);
     				mounted = true;
     			}
     		},
@@ -12488,7 +12626,9 @@ var app = (function () {
     			append_dev(div1, div0);
 
     			for (let i = 0; i < each_blocks.length; i += 1) {
-    				each_blocks[i].m(div0, null);
+    				if (each_blocks[i]) {
+    					each_blocks[i].m(div0, null);
+    				}
     			}
 
     			append_dev(div1, t2);
@@ -12726,7 +12866,7 @@ var app = (function () {
     			current = true;
 
     			if (!mounted) {
-    				dispose = listen_dev(div0, "click", /*goToSpaceshipModification*/ ctx[8], false, false, false);
+    				dispose = listen_dev(div0, "click", /*goToSpaceshipModification*/ ctx[8], false, false, false, false);
     				mounted = true;
     			}
     		},
@@ -12735,6 +12875,7 @@ var app = (function () {
     			if (current) return;
 
     			add_render_callback(() => {
+    				if (!current) return;
     				if (div1_outro) div1_outro.end(1);
     				div1_intro = create_in_transition(div1, slide, { duration: 300 });
     				div1_intro.start();
@@ -12932,8 +13073,8 @@ var app = (function () {
 
     			if (!mounted) {
     				dispose = [
-    					listen_dev(div2, "click", /*click_handler_1*/ ctx[13], false, false, false),
-    					listen_dev(div4, "click", /*click_handler_2*/ ctx[14], false, false, false)
+    					listen_dev(div2, "click", /*click_handler_1*/ ctx[13], false, false, false, false),
+    					listen_dev(div4, "click", /*click_handler_2*/ ctx[14], false, false, false, false)
     				];
 
     				mounted = true;
@@ -13038,6 +13179,7 @@ var app = (function () {
     			transition_in(if_block2);
 
     			add_render_callback(() => {
+    				if (!current) return;
     				if (div9_outro) div9_outro.end(1);
     				div9_intro = create_in_transition(div9, fly, { delay: 400, duration: 400 });
     				div9_intro.start();
@@ -13322,7 +13464,7 @@ var app = (function () {
     	}
     }
 
-    /* src\client\svelte\pages\PublicMenu.svelte generated by Svelte v3.50.1 */
+    /* src\client\svelte\pages\PublicMenu.svelte generated by Svelte v3.59.2 */
     const file$s = "src\\client\\svelte\\pages\\PublicMenu.svelte";
 
     // (109:8) {#if currentSubpage == SUBPAGES.SIGN_IN}
@@ -14255,6 +14397,7 @@ var app = (function () {
     			transition_in(cell.$$.fragment, local);
 
     			add_render_callback(() => {
+    				if (!current) return;
     				if (div_outro) div_outro.end(1);
     				div_intro = create_in_transition(div, fade, { delay: 400, duration: 400 });
     				div_intro.start();
@@ -14547,7 +14690,7 @@ var app = (function () {
     	}
     }
 
-    /* node_modules\svelte-loading-spinners\dist\Shadow.svelte generated by Svelte v3.50.1 */
+    /* node_modules\svelte-loading-spinners\dist\Shadow.svelte generated by Svelte v3.59.2 */
 
     const file$r = "node_modules\\svelte-loading-spinners\\dist\\Shadow.svelte";
 
@@ -14687,7 +14830,7 @@ var app = (function () {
     	}
     }
 
-    /* src\client\svelte\components\ui\RankingAndTime.svelte generated by Svelte v3.50.1 */
+    /* src\client\svelte\components\ui\RankingAndTime.svelte generated by Svelte v3.59.2 */
     const file$q = "src\\client\\svelte\\components\\ui\\RankingAndTime.svelte";
 
     // (42:4) {#if !noDifference}
@@ -15014,7 +15157,7 @@ var app = (function () {
     	}
     }
 
-    /* src\client\svelte\components\race\CheckpointTime.svelte generated by Svelte v3.50.1 */
+    /* src\client\svelte\components\race\CheckpointTime.svelte generated by Svelte v3.59.2 */
     const file$p = "src\\client\\svelte\\components\\race\\CheckpointTime.svelte";
 
     // (50:0) {#if showCheckpointTime}
@@ -15317,7 +15460,7 @@ var app = (function () {
     	}
     }
 
-    /* src\client\svelte\components\race\LapCounter.svelte generated by Svelte v3.50.1 */
+    /* src\client\svelte\components\race\LapCounter.svelte generated by Svelte v3.59.2 */
     const file$o = "src\\client\\svelte\\components\\race\\LapCounter.svelte";
 
     // (65:0) {#if lapsNumber > 1}
@@ -15605,7 +15748,7 @@ var app = (function () {
     	}
     }
 
-    /* src\client\svelte\components\race\LiveRanking.svelte generated by Svelte v3.50.1 */
+    /* src\client\svelte\components\race\LiveRanking.svelte generated by Svelte v3.59.2 */
     const file$n = "src\\client\\svelte\\components\\race\\LiveRanking.svelte";
 
     function create_fragment$o(ctx) {
@@ -15833,7 +15976,7 @@ var app = (function () {
     	}
     }
 
-    /* src\client\svelte\components\race\RaceCounter.svelte generated by Svelte v3.50.1 */
+    /* src\client\svelte\components\race\RaceCounter.svelte generated by Svelte v3.59.2 */
     const file$m = "src\\client\\svelte\\components\\race\\RaceCounter.svelte";
 
     // (41:0) {#if showCounter}
@@ -15864,6 +16007,7 @@ var app = (function () {
     			if (current) return;
 
     			add_render_callback(() => {
+    				if (!current) return;
     				if (div_outro) div_outro.end(1);
     				div_intro = create_in_transition(div, scale, { duration: 500 });
     				div_intro.start();
@@ -16051,7 +16195,7 @@ var app = (function () {
     	}
     }
 
-    /* src\client\svelte\components\race\RaceTime.svelte generated by Svelte v3.50.1 */
+    /* src\client\svelte\components\race\RaceTime.svelte generated by Svelte v3.59.2 */
     const file$l = "src\\client\\svelte\\components\\race\\RaceTime.svelte";
 
     function create_fragment$m(ctx) {
@@ -16148,7 +16292,7 @@ var app = (function () {
     	}
     }
 
-    /* src\client\svelte\components\race\EndraceMenu.svelte generated by Svelte v3.50.1 */
+    /* src\client\svelte\components\race\EndraceMenu.svelte generated by Svelte v3.59.2 */
     const file$k = "src\\client\\svelte\\components\\race\\EndraceMenu.svelte";
 
     // (91:0) {#if showMenu}
@@ -16198,6 +16342,7 @@ var app = (function () {
     			transition_in(cell.$$.fragment, local);
 
     			add_render_callback(() => {
+    				if (!current) return;
     				if (div_outro) div_outro.end(1);
     				div_intro = create_in_transition(div, fade, { duration: 800 });
     				div_intro.start();
@@ -17580,7 +17725,7 @@ var app = (function () {
     	}
     }
 
-    /* src\client\svelte\pages\RaceOverlay.svelte generated by Svelte v3.50.1 */
+    /* src\client\svelte\pages\RaceOverlay.svelte generated by Svelte v3.59.2 */
     const file$j = "src\\client\\svelte\\pages\\RaceOverlay.svelte";
 
     // (30:0) {#if loadingRace}
@@ -17848,7 +17993,7 @@ var app = (function () {
     	}
     }
 
-    /* src\client\svelte\pages\EditorMenu.svelte generated by Svelte v3.50.1 */
+    /* src\client\svelte\pages\EditorMenu.svelte generated by Svelte v3.59.2 */
     const file$i = "src\\client\\svelte\\pages\\EditorMenu.svelte";
 
     function get_each_context$8(ctx, list, i) {
@@ -17998,7 +18143,9 @@ var app = (function () {
     		},
     		m: function mount(target, anchor) {
     			for (let i = 0; i < each_blocks.length; i += 1) {
-    				each_blocks[i].m(target, anchor);
+    				if (each_blocks[i]) {
+    					each_blocks[i].m(target, anchor);
+    				}
     			}
 
     			insert_dev(target, each_1_anchor, anchor);
@@ -18139,6 +18286,7 @@ var app = (function () {
     			transition_in(pointerzconfirm.$$.fragment, local);
 
     			add_render_callback(() => {
+    				if (!current) return;
     				if (!div_transition) div_transition = create_bidirectional_transition(div, slide, {}, true);
     				div_transition.run(1);
     			});
@@ -18577,6 +18725,7 @@ var app = (function () {
     			transition_in(cell1.$$.fragment, local);
 
     			add_render_callback(() => {
+    				if (!current) return;
     				if (div2_outro) div2_outro.end(1);
     				div2_intro = create_in_transition(div2, fly, { delay: 400, duration: 400 });
     				div2_intro.start();
@@ -18879,7 +19028,7 @@ var app = (function () {
         return out;
     }
 
-    /* node_modules\svelte-select\src\Item.svelte generated by Svelte v3.50.1 */
+    /* node_modules\svelte-select\src\Item.svelte generated by Svelte v3.59.2 */
 
     const file$h = "node_modules\\svelte-select\\src\\Item.svelte";
 
@@ -19112,7 +19261,7 @@ var app = (function () {
     	}
     }
 
-    /* node_modules\svelte-select\src\List.svelte generated by Svelte v3.50.1 */
+    /* node_modules\svelte-select\src\List.svelte generated by Svelte v3.59.2 */
     const file$g = "node_modules\\svelte-select\\src\\List.svelte";
 
     function get_each_context$7(ctx, list, i) {
@@ -19158,7 +19307,9 @@ var app = (function () {
     		},
     		m: function mount(target, anchor) {
     			for (let i = 0; i < each_blocks.length; i += 1) {
-    				each_blocks[i].m(target, anchor);
+    				if (each_blocks[i]) {
+    					each_blocks[i].m(target, anchor);
+    				}
     			}
 
     			insert_dev(target, each_1_anchor, anchor);
@@ -19271,7 +19422,7 @@ var app = (function () {
     	}
 
     	if (switch_value) {
-    		switch_instance = new switch_value(switch_props(ctx));
+    		switch_instance = construct_svelte_component_dev(switch_value, switch_props(ctx));
     	}
 
     	const block = {
@@ -19280,10 +19431,7 @@ var app = (function () {
     			switch_instance_anchor = empty();
     		},
     		m: function mount(target, anchor) {
-    			if (switch_instance) {
-    				mount_component(switch_instance, target, anchor);
-    			}
-
+    			if (switch_instance) mount_component(switch_instance, target, anchor);
     			insert_dev(target, switch_instance_anchor, anchor);
     			current = true;
     		},
@@ -19296,7 +19444,7 @@ var app = (function () {
     				switch_instance_changes.$$scope = { dirty, ctx };
     			}
 
-    			if (switch_value !== (switch_value = /*VirtualList*/ ctx[3])) {
+    			if (dirty[0] & /*VirtualList*/ 8 && switch_value !== (switch_value = /*VirtualList*/ ctx[3])) {
     				if (switch_instance) {
     					group_outros();
     					const old_component = switch_instance;
@@ -19309,7 +19457,7 @@ var app = (function () {
     				}
 
     				if (switch_value) {
-    					switch_instance = new switch_value(switch_props(ctx));
+    					switch_instance = construct_svelte_component_dev(switch_value, switch_props(ctx));
     					create_component(switch_instance.$$.fragment);
     					transition_in(switch_instance.$$.fragment, 1);
     					mount_component(switch_instance, switch_instance_anchor.parentNode, switch_instance_anchor);
@@ -19452,7 +19600,7 @@ var app = (function () {
     	}
 
     	if (switch_value) {
-    		switch_instance = new switch_value(switch_props(ctx));
+    		switch_instance = construct_svelte_component_dev(switch_value, switch_props(ctx));
     	}
 
     	function mouseover_handler_1() {
@@ -19478,19 +19626,15 @@ var app = (function () {
     		},
     		m: function mount(target, anchor) {
     			insert_dev(target, div, anchor);
-
-    			if (switch_instance) {
-    				mount_component(switch_instance, div, null);
-    			}
-
+    			if (switch_instance) mount_component(switch_instance, div, null);
     			append_dev(div, t);
     			current = true;
 
     			if (!mounted) {
     				dispose = [
-    					listen_dev(div, "mouseover", mouseover_handler_1, false, false, false),
-    					listen_dev(div, "focus", focus_handler_1, false, false, false),
-    					listen_dev(div, "click", click_handler_1, false, false, false)
+    					listen_dev(div, "mouseover", mouseover_handler_1, false, false, false, false),
+    					listen_dev(div, "focus", focus_handler_1, false, false, false, false),
+    					listen_dev(div, "click", click_handler_1, false, false, false, false)
     				];
 
     				mounted = true;
@@ -19506,7 +19650,7 @@ var app = (function () {
     			if (dirty[0] & /*hoverItemIndex, items*/ 6) switch_instance_changes.isHover = isItemHover(/*hoverItemIndex*/ ctx[2], /*item*/ ctx[41], /*i*/ ctx[42], /*items*/ ctx[1]);
     			if (dirty[0] & /*items*/ 2) switch_instance_changes.isSelectable = isItemSelectable(/*item*/ ctx[41]);
 
-    			if (switch_value !== (switch_value = /*Item*/ ctx[4])) {
+    			if (dirty[0] & /*Item*/ 16 && switch_value !== (switch_value = /*Item*/ ctx[4])) {
     				if (switch_instance) {
     					group_outros();
     					const old_component = switch_instance;
@@ -19519,7 +19663,7 @@ var app = (function () {
     				}
 
     				if (switch_value) {
-    					switch_instance = new switch_value(switch_props(ctx));
+    					switch_instance = construct_svelte_component_dev(switch_value, switch_props(ctx));
     					create_component(switch_instance.$$.fragment);
     					transition_in(switch_instance.$$.fragment, 1);
     					mount_component(switch_instance, div, t);
@@ -19701,7 +19845,7 @@ var app = (function () {
     	}
 
     	if (switch_value) {
-    		switch_instance = new switch_value(switch_props(ctx));
+    		switch_instance = construct_svelte_component_dev(switch_value, switch_props(ctx));
     	}
 
     	function mouseover_handler() {
@@ -19725,18 +19869,14 @@ var app = (function () {
     		},
     		m: function mount(target, anchor) {
     			insert_dev(target, div, anchor);
-
-    			if (switch_instance) {
-    				mount_component(switch_instance, div, null);
-    			}
-
+    			if (switch_instance) mount_component(switch_instance, div, null);
     			current = true;
 
     			if (!mounted) {
     				dispose = [
-    					listen_dev(div, "mouseover", mouseover_handler, false, false, false),
-    					listen_dev(div, "focus", focus_handler, false, false, false),
-    					listen_dev(div, "click", click_handler, false, false, false)
+    					listen_dev(div, "mouseover", mouseover_handler, false, false, false, false),
+    					listen_dev(div, "focus", focus_handler, false, false, false, false),
+    					listen_dev(div, "click", click_handler, false, false, false, false)
     				];
 
     				mounted = true;
@@ -19753,7 +19893,7 @@ var app = (function () {
     			if (dirty[0] & /*hoverItemIndex, items*/ 6 | dirty[1] & /*item, i*/ 3072) switch_instance_changes.isHover = isItemHover(/*hoverItemIndex*/ ctx[2], /*item*/ ctx[41], /*i*/ ctx[42], /*items*/ ctx[1]);
     			if (dirty[1] & /*item*/ 1024) switch_instance_changes.isSelectable = isItemSelectable(/*item*/ ctx[41]);
 
-    			if (switch_value !== (switch_value = /*Item*/ ctx[4])) {
+    			if (dirty[0] & /*Item*/ 16 && switch_value !== (switch_value = /*Item*/ ctx[4])) {
     				if (switch_instance) {
     					group_outros();
     					const old_component = switch_instance;
@@ -19766,7 +19906,7 @@ var app = (function () {
     				}
 
     				if (switch_value) {
-    					switch_instance = new switch_value(switch_props(ctx));
+    					switch_instance = construct_svelte_component_dev(switch_value, switch_props(ctx));
     					create_component(switch_instance.$$.fragment);
     					transition_in(switch_instance.$$.fragment, 1);
     					mount_component(switch_instance, div, null);
@@ -19843,8 +19983,8 @@ var app = (function () {
 
     			if (!mounted) {
     				dispose = [
-    					listen_dev(window, "keydown", /*handleKeyDown*/ ctx[17], false, false, false),
-    					listen_dev(window, "resize", /*computePlacement*/ ctx[18], false, false, false)
+    					listen_dev(window, "keydown", /*handleKeyDown*/ ctx[17], false, false, false, false),
+    					listen_dev(window, "resize", /*computePlacement*/ ctx[18], false, false, false, false)
     				];
 
     				mounted = true;
@@ -20521,7 +20661,7 @@ var app = (function () {
     	}
     }
 
-    /* node_modules\svelte-select\src\Selection.svelte generated by Svelte v3.50.1 */
+    /* node_modules\svelte-select\src\Selection.svelte generated by Svelte v3.59.2 */
 
     const file$f = "node_modules\\svelte-select\\src\\Selection.svelte";
 
@@ -20622,7 +20762,7 @@ var app = (function () {
     	}
     }
 
-    /* node_modules\svelte-select\src\MultiSelection.svelte generated by Svelte v3.50.1 */
+    /* node_modules\svelte-select\src\MultiSelection.svelte generated by Svelte v3.59.2 */
     const file$e = "node_modules\\svelte-select\\src\\MultiSelection.svelte";
 
     function get_each_context$6(ctx, list, i) {
@@ -20668,7 +20808,7 @@ var app = (function () {
     			append_dev(svg, path);
 
     			if (!mounted) {
-    				dispose = listen_dev(div, "click", click_handler, false, false, false);
+    				dispose = listen_dev(div, "click", click_handler, false, false, false, false);
     				mounted = true;
     			}
     		},
@@ -20730,7 +20870,7 @@ var app = (function () {
     			append_dev(div1, t1);
 
     			if (!mounted) {
-    				dispose = listen_dev(div1, "click", click_handler_1, false, false, false);
+    				dispose = listen_dev(div1, "click", click_handler_1, false, false, false, false);
     				mounted = true;
     			}
     		},
@@ -20796,7 +20936,9 @@ var app = (function () {
     		},
     		m: function mount(target, anchor) {
     			for (let i = 0; i < each_blocks.length; i += 1) {
-    				each_blocks[i].m(target, anchor);
+    				if (each_blocks[i]) {
+    					each_blocks[i].m(target, anchor);
+    				}
     			}
 
     			insert_dev(target, each_1_anchor, anchor);
@@ -20979,7 +21121,7 @@ var app = (function () {
     	}
     }
 
-    /* node_modules\svelte-select\src\VirtualList.svelte generated by Svelte v3.50.1 */
+    /* node_modules\svelte-select\src\VirtualList.svelte generated by Svelte v3.59.2 */
     const file$d = "node_modules\\svelte-select\\src\\VirtualList.svelte";
 
     function get_each_context$5(ctx, list, i) {
@@ -21147,16 +21289,18 @@ var app = (function () {
     			append_dev(svelte_virtual_list_viewport, svelte_virtual_list_contents);
 
     			for (let i = 0; i < each_blocks.length; i += 1) {
-    				each_blocks[i].m(svelte_virtual_list_contents, null);
+    				if (each_blocks[i]) {
+    					each_blocks[i].m(svelte_virtual_list_contents, null);
+    				}
     			}
 
     			/*svelte_virtual_list_contents_binding*/ ctx[16](svelte_virtual_list_contents);
     			/*svelte_virtual_list_viewport_binding*/ ctx[17](svelte_virtual_list_viewport);
-    			svelte_virtual_list_viewport_resize_listener = add_resize_listener(svelte_virtual_list_viewport, /*svelte_virtual_list_viewport_elementresize_handler*/ ctx[18].bind(svelte_virtual_list_viewport));
+    			svelte_virtual_list_viewport_resize_listener = add_iframe_resize_listener(svelte_virtual_list_viewport, /*svelte_virtual_list_viewport_elementresize_handler*/ ctx[18].bind(svelte_virtual_list_viewport));
     			current = true;
 
     			if (!mounted) {
-    				dispose = listen_dev(svelte_virtual_list_viewport, "scroll", /*handle_scroll*/ ctx[8], false, false, false);
+    				dispose = listen_dev(svelte_virtual_list_viewport, "scroll", /*handle_scroll*/ ctx[8], false, false, false, false);
     				mounted = true;
     			}
     		},
@@ -21516,7 +21660,7 @@ var app = (function () {
     	}
     }
 
-    /* node_modules\svelte-select\src\ClearIcon.svelte generated by Svelte v3.50.1 */
+    /* node_modules\svelte-select\src\ClearIcon.svelte generated by Svelte v3.59.2 */
 
     const file$c = "node_modules\\svelte-select\\src\\ClearIcon.svelte";
 
@@ -21613,9 +21757,9 @@ var app = (function () {
         };
     }
 
-    /* node_modules\svelte-select\src\Select.svelte generated by Svelte v3.50.1 */
+    /* node_modules\svelte-select\src\Select.svelte generated by Svelte v3.59.2 */
 
-    const { Object: Object_1, console: console_1$1 } = globals;
+    const { Object: Object_1, console: console_1 } = globals;
     const file$b = "node_modules\\svelte-select\\src\\Select.svelte";
 
     function get_each_context$4(ctx, list, i) {
@@ -21695,7 +21839,7 @@ var app = (function () {
     	}
 
     	if (switch_value) {
-    		switch_instance = new switch_value(switch_props());
+    		switch_instance = construct_svelte_component_dev(switch_value, switch_props());
     	}
 
     	const block = {
@@ -21704,10 +21848,7 @@ var app = (function () {
     			switch_instance_anchor = empty();
     		},
     		m: function mount(target, anchor) {
-    			if (switch_instance) {
-    				mount_component(switch_instance, target, anchor);
-    			}
-
+    			if (switch_instance) mount_component(switch_instance, target, anchor);
     			insert_dev(target, switch_instance_anchor, anchor);
     			current = true;
     		},
@@ -21716,7 +21857,7 @@ var app = (function () {
     			? get_spread_update(switch_instance_spread_levels, [get_spread_object(/*iconProps*/ ctx[18])])
     			: {};
 
-    			if (switch_value !== (switch_value = /*Icon*/ ctx[17])) {
+    			if (dirty[0] & /*Icon*/ 131072 && switch_value !== (switch_value = /*Icon*/ ctx[17])) {
     				if (switch_instance) {
     					group_outros();
     					const old_component = switch_instance;
@@ -21729,7 +21870,7 @@ var app = (function () {
     				}
 
     				if (switch_value) {
-    					switch_instance = new switch_value(switch_props());
+    					switch_instance = construct_svelte_component_dev(switch_value, switch_props());
     					create_component(switch_instance.$$.fragment);
     					transition_in(switch_instance.$$.fragment, 1);
     					mount_component(switch_instance, switch_instance_anchor.parentNode, switch_instance_anchor);
@@ -21787,7 +21928,7 @@ var app = (function () {
     	}
 
     	if (switch_value) {
-    		switch_instance = new switch_value(switch_props(ctx));
+    		switch_instance = construct_svelte_component_dev(switch_value, switch_props(ctx));
     		switch_instance.$on("multiItemClear", /*handleMultiItemClear*/ ctx[38]);
     		switch_instance.$on("focus", /*handleFocus*/ ctx[40]);
     	}
@@ -21798,10 +21939,7 @@ var app = (function () {
     			switch_instance_anchor = empty();
     		},
     		m: function mount(target, anchor) {
-    			if (switch_instance) {
-    				mount_component(switch_instance, target, anchor);
-    			}
-
+    			if (switch_instance) mount_component(switch_instance, target, anchor);
     			insert_dev(target, switch_instance_anchor, anchor);
     			current = true;
     		},
@@ -21813,7 +21951,7 @@ var app = (function () {
     			if (dirty[0] & /*isDisabled*/ 512) switch_instance_changes.isDisabled = /*isDisabled*/ ctx[9];
     			if (dirty[0] & /*multiFullItemClearable*/ 256) switch_instance_changes.multiFullItemClearable = /*multiFullItemClearable*/ ctx[8];
 
-    			if (switch_value !== (switch_value = /*MultiSelection*/ ctx[26])) {
+    			if (dirty[0] & /*MultiSelection*/ 67108864 && switch_value !== (switch_value = /*MultiSelection*/ ctx[26])) {
     				if (switch_instance) {
     					group_outros();
     					const old_component = switch_instance;
@@ -21826,7 +21964,7 @@ var app = (function () {
     				}
 
     				if (switch_value) {
-    					switch_instance = new switch_value(switch_props(ctx));
+    					switch_instance = construct_svelte_component_dev(switch_value, switch_props(ctx));
     					switch_instance.$on("multiItemClear", /*handleMultiItemClear*/ ctx[38]);
     					switch_instance.$on("focus", /*handleFocus*/ ctx[40]);
     					create_component(switch_instance.$$.fragment);
@@ -21885,7 +22023,7 @@ var app = (function () {
     	}
 
     	if (switch_value) {
-    		switch_instance = new switch_value(switch_props(ctx));
+    		switch_instance = construct_svelte_component_dev(switch_value, switch_props(ctx));
     	}
 
     	const block = {
@@ -21897,15 +22035,11 @@ var app = (function () {
     		},
     		m: function mount(target, anchor) {
     			insert_dev(target, div, anchor);
-
-    			if (switch_instance) {
-    				mount_component(switch_instance, div, null);
-    			}
-
+    			if (switch_instance) mount_component(switch_instance, div, null);
     			current = true;
 
     			if (!mounted) {
-    				dispose = listen_dev(div, "focus", /*handleFocus*/ ctx[40], false, false, false);
+    				dispose = listen_dev(div, "focus", /*handleFocus*/ ctx[40], false, false, false, false);
     				mounted = true;
     			}
     		},
@@ -21914,7 +22048,7 @@ var app = (function () {
     			if (dirty[0] & /*value*/ 4) switch_instance_changes.item = /*value*/ ctx[2];
     			if (dirty[0] & /*getSelectionLabel*/ 4096) switch_instance_changes.getSelectionLabel = /*getSelectionLabel*/ ctx[12];
 
-    			if (switch_value !== (switch_value = /*Selection*/ ctx[25])) {
+    			if (dirty[0] & /*Selection*/ 33554432 && switch_value !== (switch_value = /*Selection*/ ctx[25])) {
     				if (switch_instance) {
     					group_outros();
     					const old_component = switch_instance;
@@ -21927,7 +22061,7 @@ var app = (function () {
     				}
 
     				if (switch_value) {
-    					switch_instance = new switch_value(switch_props(ctx));
+    					switch_instance = construct_svelte_component_dev(switch_value, switch_props(ctx));
     					create_component(switch_instance.$$.fragment);
     					transition_in(switch_instance.$$.fragment, 1);
     					mount_component(switch_instance, div, null);
@@ -21980,7 +22114,7 @@ var app = (function () {
     	}
 
     	if (switch_value) {
-    		switch_instance = new switch_value(switch_props());
+    		switch_instance = construct_svelte_component_dev(switch_value, switch_props());
     	}
 
     	const block = {
@@ -21993,20 +22127,16 @@ var app = (function () {
     		},
     		m: function mount(target, anchor) {
     			insert_dev(target, div, anchor);
-
-    			if (switch_instance) {
-    				mount_component(switch_instance, div, null);
-    			}
-
+    			if (switch_instance) mount_component(switch_instance, div, null);
     			current = true;
 
     			if (!mounted) {
-    				dispose = listen_dev(div, "click", prevent_default(/*handleClear*/ ctx[27]), false, true, false);
+    				dispose = listen_dev(div, "click", prevent_default(/*handleClear*/ ctx[27]), false, true, false, false);
     				mounted = true;
     			}
     		},
     		p: function update(ctx, dirty) {
-    			if (switch_value !== (switch_value = /*ClearIcon*/ ctx[23])) {
+    			if (dirty[0] & /*ClearIcon*/ 8388608 && switch_value !== (switch_value = /*ClearIcon*/ ctx[23])) {
     				if (switch_instance) {
     					group_outros();
     					const old_component = switch_instance;
@@ -22019,7 +22149,7 @@ var app = (function () {
     				}
 
     				if (switch_value) {
-    					switch_instance = new switch_value(switch_props());
+    					switch_instance = construct_svelte_component_dev(switch_value, switch_props());
     					create_component(switch_instance.$$.fragment);
     					transition_in(switch_instance.$$.fragment, 1);
     					mount_component(switch_instance, div, null);
@@ -22264,7 +22394,7 @@ var app = (function () {
     	}
 
     	if (switch_value) {
-    		switch_instance = new switch_value(switch_props(ctx));
+    		switch_instance = construct_svelte_component_dev(switch_value, switch_props(ctx));
     		binding_callbacks.push(() => bind(switch_instance, 'hoverItemIndex', switch_instance_hoverItemIndex_binding));
     		switch_instance.$on("itemSelected", /*itemSelected*/ ctx[43]);
     		switch_instance.$on("itemCreated", /*itemCreated*/ ctx[44]);
@@ -22277,10 +22407,7 @@ var app = (function () {
     			switch_instance_anchor = empty();
     		},
     		m: function mount(target, anchor) {
-    			if (switch_instance) {
-    				mount_component(switch_instance, target, anchor);
-    			}
-
+    			if (switch_instance) mount_component(switch_instance, target, anchor);
     			insert_dev(target, switch_instance_anchor, anchor);
     			current = true;
     		},
@@ -22295,7 +22422,7 @@ var app = (function () {
     				add_flush_callback(() => updating_hoverItemIndex = false);
     			}
 
-    			if (switch_value !== (switch_value = /*List*/ ctx[24])) {
+    			if (dirty[0] & /*List*/ 16777216 && switch_value !== (switch_value = /*List*/ ctx[24])) {
     				if (switch_instance) {
     					group_outros();
     					const old_component = switch_instance;
@@ -22308,7 +22435,7 @@ var app = (function () {
     				}
 
     				if (switch_value) {
-    					switch_instance = new switch_value(switch_props(ctx));
+    					switch_instance = construct_svelte_component_dev(switch_value, switch_props(ctx));
     					binding_callbacks.push(() => bind(switch_instance, 'hoverItemIndex', switch_instance_hoverItemIndex_binding));
     					switch_instance.$on("itemSelected", /*itemSelected*/ ctx[43]);
     					switch_instance.$on("itemCreated", /*itemCreated*/ ctx[44]);
@@ -22419,7 +22546,9 @@ var app = (function () {
     		},
     		m: function mount(target, anchor) {
     			for (let i = 0; i < each_blocks.length; i += 1) {
-    				each_blocks[i].m(target, anchor);
+    				if (each_blocks[i]) {
+    					each_blocks[i].m(target, anchor);
+    				}
     			}
 
     			insert_dev(target, each_1_anchor, anchor);
@@ -22548,10 +22677,10 @@ var app = (function () {
     		{ disabled: /*isDisabled*/ ctx[9] }
     	];
 
-    	let input_1_data = {};
+    	let input_data = {};
 
     	for (let i = 0; i < input_1_levels.length; i += 1) {
-    		input_1_data = assign(input_1_data, input_1_levels[i]);
+    		input_data = assign(input_data, input_1_levels[i]);
     	}
 
     	let if_block3 = !/*isMulti*/ ctx[7] && /*showSelectedItem*/ ctx[29] && create_if_block_7(ctx);
@@ -22592,7 +22721,7 @@ var app = (function () {
     			attr_dev(span, "aria-relevant", "additions text");
     			attr_dev(span, "class", "a11yText svelte-17l1npl");
     			add_location(span, file$b, 870, 4, 23680);
-    			set_attributes(input_1, input_1_data);
+    			set_attributes(input_1, input_data);
     			toggle_class(input_1, "svelte-17l1npl", true);
     			add_location(input_1, file$b, 899, 4, 24419);
     			attr_dev(div, "class", div_class_value = "selectContainer " + /*containerClasses*/ ctx[21] + " svelte-17l1npl");
@@ -22638,12 +22767,12 @@ var app = (function () {
 
     			if (!mounted) {
     				dispose = [
-    					listen_dev(window, "click", /*handleWindowEvent*/ ctx[41], false, false, false),
-    					listen_dev(window, "focusin", /*handleWindowEvent*/ ctx[41], false, false, false),
-    					listen_dev(window, "keydown", /*handleKeyDown*/ ctx[39], false, false, false),
-    					listen_dev(input_1, "focus", /*handleFocus*/ ctx[40], false, false, false),
+    					listen_dev(window, "click", /*handleWindowEvent*/ ctx[41], false, false, false, false),
+    					listen_dev(window, "focusin", /*handleWindowEvent*/ ctx[41], false, false, false, false),
+    					listen_dev(window, "keydown", /*handleKeyDown*/ ctx[39], false, false, false, false),
+    					listen_dev(input_1, "focus", /*handleFocus*/ ctx[40], false, false, false, false),
     					listen_dev(input_1, "input", /*input_1_input_handler*/ ctx[83]),
-    					listen_dev(div, "click", /*handleClick*/ ctx[42], false, false, false)
+    					listen_dev(div, "click", /*handleClick*/ ctx[42], false, false, false, false)
     				];
 
     				mounted = true;
@@ -22709,7 +22838,7 @@ var app = (function () {
     				check_outros();
     			}
 
-    			set_attributes(input_1, input_1_data = get_spread_update(input_1_levels, [
+    			set_attributes(input_1, input_data = get_spread_update(input_1_levels, [
     				(!current || dirty[0] & /*isSearchable*/ 8192 && input_1_readonly_value !== (input_1_readonly_value = !/*isSearchable*/ ctx[13])) && { readOnly: input_1_readonly_value },
     				dirty[1] & /*_inputAttributes*/ 1 && /*_inputAttributes*/ ctx[31],
     				(!current || dirty[1] & /*placeholderText*/ 32) && { placeholder: /*placeholderText*/ ctx[36] },
@@ -23505,7 +23634,7 @@ var app = (function () {
     	];
 
     	Object_1.keys($$props).forEach(key => {
-    		if (!~writable_props.indexOf(key) && key.slice(0, 2) !== '$$' && key !== 'slot') console_1$1.warn(`<Select> was created with unknown prop '${key}'`);
+    		if (!~writable_props.indexOf(key) && key.slice(0, 2) !== '$$' && key !== 'slot') console_1.warn(`<Select> was created with unknown prop '${key}'`);
     	});
 
     	function input_1_binding($$value) {
@@ -24565,7 +24694,7 @@ var app = (function () {
     	}
     }
 
-    /* src\client\svelte\components\ui\PointerzSelect.svelte generated by Svelte v3.50.1 */
+    /* src\client\svelte\components\ui\PointerzSelect.svelte generated by Svelte v3.59.2 */
     const file$a = "src\\client\\svelte\\components\\ui\\PointerzSelect.svelte";
 
     // (21:0) <Label {label}>
@@ -24703,6 +24832,16 @@ var app = (function () {
     		dispatch("change", { value: event.detail.value });
     	}
 
+    	$$self.$$.on_mount.push(function () {
+    		if (value === undefined && !('value' in $$props || $$self.$$.bound[$$self.$$.props['value']])) {
+    			console.warn("<PointerzSelect> was created without expected prop 'value'");
+    		}
+
+    		if (label === undefined && !('label' in $$props || $$self.$$.bound[$$self.$$.props['label']])) {
+    			console.warn("<PointerzSelect> was created without expected prop 'label'");
+    		}
+    	});
+
     	const writable_props = ['items', 'value', 'label'];
 
     	Object.keys($$props).forEach(key => {
@@ -24753,17 +24892,6 @@ var app = (function () {
     			options,
     			id: create_fragment$b.name
     		});
-
-    		const { ctx } = this.$$;
-    		const props = options.props || {};
-
-    		if (/*value*/ ctx[4] === undefined && !('value' in props)) {
-    			console.warn("<PointerzSelect> was created without expected prop 'value'");
-    		}
-
-    		if (/*label*/ ctx[1] === undefined && !('label' in props)) {
-    			console.warn("<PointerzSelect> was created without expected prop 'label'");
-    		}
     	}
 
     	get items() {
@@ -24954,7 +25082,7 @@ var app = (function () {
       };
     };
 
-    /* node_modules\svelte-checkbox\Checkbox.svelte generated by Svelte v3.50.1 */
+    /* node_modules\svelte-checkbox\Checkbox.svelte generated by Svelte v3.59.2 */
     const file$9 = "node_modules\\svelte-checkbox\\Checkbox.svelte";
 
     function create_fragment$a(ctx) {
@@ -25020,7 +25148,7 @@ var app = (function () {
     			/*div_binding*/ ctx[15](div);
 
     			if (!mounted) {
-    				dispose = listen_dev(input, "change", /*handleChange*/ ctx[10], false, false, false);
+    				dispose = listen_dev(input, "change", /*handleChange*/ ctx[10], false, false, false, false);
     				mounted = true;
     			}
     		},
@@ -25331,7 +25459,7 @@ var app = (function () {
     	}
     }
 
-    /* src\client\svelte\components\ui\PointerzCheckbox.svelte generated by Svelte v3.50.1 */
+    /* src\client\svelte\components\ui\PointerzCheckbox.svelte generated by Svelte v3.59.2 */
     const file$8 = "src\\client\\svelte\\components\\ui\\PointerzCheckbox.svelte";
 
     // (20:0) <Label {label}>
@@ -25484,6 +25612,16 @@ var app = (function () {
     		dispatch("change", { value });
     	}
 
+    	$$self.$$.on_mount.push(function () {
+    		if (label === undefined && !('label' in $$props || $$self.$$.bound[$$self.$$.props['label']])) {
+    			console.warn("<PointerzCheckbox> was created without expected prop 'label'");
+    		}
+
+    		if (value === undefined && !('value' in $$props || $$self.$$.bound[$$self.$$.props['value']])) {
+    			console.warn("<PointerzCheckbox> was created without expected prop 'value'");
+    		}
+    	});
+
     	const writable_props = ['label', 'value'];
 
     	Object.keys($$props).forEach(key => {
@@ -25530,17 +25668,6 @@ var app = (function () {
     			options,
     			id: create_fragment$9.name
     		});
-
-    		const { ctx } = this.$$;
-    		const props = options.props || {};
-
-    		if (/*label*/ ctx[1] === undefined && !('label' in props)) {
-    			console.warn("<PointerzCheckbox> was created without expected prop 'label'");
-    		}
-
-    		if (/*value*/ ctx[0] === undefined && !('value' in props)) {
-    			console.warn("<PointerzCheckbox> was created without expected prop 'value'");
-    		}
     	}
 
     	get label() {
@@ -25560,7 +25687,7 @@ var app = (function () {
     	}
     }
 
-    /* src\client\svelte\components\editor\BlockProperty.svelte generated by Svelte v3.50.1 */
+    /* src\client\svelte\components\editor\BlockProperty.svelte generated by Svelte v3.59.2 */
 
     // (51:0) {:else}
     function create_else_block$2(ctx) {
@@ -25850,6 +25977,16 @@ var app = (function () {
     		Client$1.phaser.editor.setSelectedProperty(parent, propertyName, newValue);
     	};
 
+    	$$self.$$.on_mount.push(function () {
+    		if (property === undefined && !('property' in $$props || $$self.$$.bound[$$self.$$.props['property']])) {
+    			console.warn("<BlockProperty> was created without expected prop 'property'");
+    		}
+
+    		if (formatPropertyName === undefined && !('formatPropertyName' in $$props || $$self.$$.bound[$$self.$$.props['formatPropertyName']])) {
+    			console.warn("<BlockProperty> was created without expected prop 'formatPropertyName'");
+    		}
+    	});
+
     	const writable_props = ['property', 'formatPropertyName', 'parent'];
 
     	Object.keys($$props).forEach(key => {
@@ -25933,17 +26070,6 @@ var app = (function () {
     			options,
     			id: create_fragment$8.name
     		});
-
-    		const { ctx } = this.$$;
-    		const props = options.props || {};
-
-    		if (/*property*/ ctx[0] === undefined && !('property' in props)) {
-    			console.warn("<BlockProperty> was created without expected prop 'property'");
-    		}
-
-    		if (/*formatPropertyName*/ ctx[1] === undefined && !('formatPropertyName' in props)) {
-    			console.warn("<BlockProperty> was created without expected prop 'formatPropertyName'");
-    		}
     	}
 
     	get property() {
@@ -25971,7 +26097,7 @@ var app = (function () {
     	}
     }
 
-    /* src\client\svelte\components\editor\BlockPropertiesPanel.svelte generated by Svelte v3.50.1 */
+    /* src\client\svelte\components\editor\BlockPropertiesPanel.svelte generated by Svelte v3.59.2 */
     const file$7 = "src\\client\\svelte\\components\\editor\\BlockPropertiesPanel.svelte";
 
     function get_each_context_2(ctx, list, i) {
@@ -26048,14 +26174,16 @@ var app = (function () {
     			insert_dev(target, t2, anchor);
 
     			for (let i = 0; i < each_blocks.length; i += 1) {
-    				each_blocks[i].m(target, anchor);
+    				if (each_blocks[i]) {
+    					each_blocks[i].m(target, anchor);
+    				}
     			}
 
     			insert_dev(target, each_1_anchor, anchor);
     			current = true;
 
     			if (!mounted) {
-    				dispose = listen_dev(img, "click", /*convertIntoCustom*/ ctx[13], false, false, false);
+    				dispose = listen_dev(img, "click", /*convertIntoCustom*/ ctx[13], false, false, false, false);
     				mounted = true;
     			}
     		},
@@ -26204,8 +26332,8 @@ var app = (function () {
 
     			if (!mounted) {
     				dispose = [
-    					listen_dev(img0, "click", /*addComponent*/ ctx[17], false, false, false),
-    					listen_dev(img1, "click", /*openOrClose*/ ctx[19], false, false, false)
+    					listen_dev(img0, "click", /*addComponent*/ ctx[17], false, false, false, false),
+    					listen_dev(img1, "click", /*openOrClose*/ ctx[19], false, false, false, false)
     				];
 
     				mounted = true;
@@ -26435,7 +26563,9 @@ var app = (function () {
     			insert_dev(target, div, anchor);
 
     			for (let i = 0; i < each_blocks.length; i += 1) {
-    				each_blocks[i].m(div, null);
+    				if (each_blocks[i]) {
+    					each_blocks[i].m(div, null);
+    				}
     			}
 
     			current = true;
@@ -26534,7 +26664,7 @@ var app = (function () {
     			current = true;
 
     			if (!mounted) {
-    				dispose = listen_dev(div, "click", click_handler, false, false, false);
+    				dispose = listen_dev(div, "click", click_handler, false, false, false, false);
     				mounted = true;
     			}
     		},
@@ -26545,6 +26675,7 @@ var app = (function () {
     			if (current) return;
 
     			add_render_callback(() => {
+    				if (!current) return;
     				if (!div_transition) div_transition = create_bidirectional_transition(div, slide, {}, true);
     				div_transition.run(1);
     			});
@@ -26594,7 +26725,7 @@ var app = (function () {
     			insert_dev(target, img, anchor);
 
     			if (!mounted) {
-    				dispose = listen_dev(img, "click", /*deleteComponent*/ ctx[16], false, false, false);
+    				dispose = listen_dev(img, "click", /*deleteComponent*/ ctx[16], false, false, false, false);
     				mounted = true;
     			}
     		},
@@ -26636,7 +26767,7 @@ var app = (function () {
     			insert_dev(target, img, anchor);
 
     			if (!mounted) {
-    				dispose = listen_dev(img, "click", /*moveComponentDown*/ ctx[15], false, false, false);
+    				dispose = listen_dev(img, "click", /*moveComponentDown*/ ctx[15], false, false, false, false);
     				mounted = true;
     			}
     		},
@@ -26679,7 +26810,7 @@ var app = (function () {
     			insert_dev(target, img, anchor);
 
     			if (!mounted) {
-    				dispose = listen_dev(img, "click", /*moveComponentUp*/ ctx[14], false, false, false);
+    				dispose = listen_dev(img, "click", /*moveComponentUp*/ ctx[14], false, false, false, false);
     				mounted = true;
     			}
     		},
@@ -26734,7 +26865,9 @@ var app = (function () {
     			insert_dev(target, div, anchor);
 
     			for (let i = 0; i < each_blocks.length; i += 1) {
-    				each_blocks[i].m(div, null);
+    				if (each_blocks[i]) {
+    					each_blocks[i].m(div, null);
+    				}
     			}
 
     			current = true;
@@ -26757,6 +26890,7 @@ var app = (function () {
     			}
 
     			add_render_callback(() => {
+    				if (!current) return;
     				if (!div_transition) div_transition = create_bidirectional_transition(div, slide, {}, true);
     				div_transition.run(1);
     			});
@@ -27060,6 +27194,16 @@ var app = (function () {
     		$$invalidate(0, opened = !opened);
     	};
 
+    	$$self.$$.on_mount.push(function () {
+    		if (selectedElement === undefined && !('selectedElement' in $$props || $$self.$$.bound[$$self.$$.props['selectedElement']])) {
+    			console.warn("<BlockPropertiesPanel> was created without expected prop 'selectedElement'");
+    		}
+
+    		if (componentIndex === undefined && !('componentIndex' in $$props || $$self.$$.bound[$$self.$$.props['componentIndex']])) {
+    			console.warn("<BlockPropertiesPanel> was created without expected prop 'componentIndex'");
+    		}
+    	});
+
     	const writable_props = [
     		'selectedElement',
     		'selectedPredefinedBlockConstants',
@@ -27194,17 +27338,6 @@ var app = (function () {
     			options,
     			id: create_fragment$7.name
     		});
-
-    		const { ctx } = this.$$;
-    		const props = options.props || {};
-
-    		if (/*selectedElement*/ ctx[2] === undefined && !('selectedElement' in props)) {
-    			console.warn("<BlockPropertiesPanel> was created without expected prop 'selectedElement'");
-    		}
-
-    		if (/*componentIndex*/ ctx[6] === undefined && !('componentIndex' in props)) {
-    			console.warn("<BlockPropertiesPanel> was created without expected prop 'componentIndex'");
-    		}
     	}
 
     	get selectedElement() {
@@ -27288,7 +27421,7 @@ var app = (function () {
     	}
     }
 
-    /* src\client\svelte\components\editor\PanelContainer.svelte generated by Svelte v3.50.1 */
+    /* src\client\svelte\components\editor\PanelContainer.svelte generated by Svelte v3.59.2 */
     const file$6 = "src\\client\\svelte\\components\\editor\\PanelContainer.svelte";
 
     function get_each_context$2(ctx, list, i) {
@@ -27338,6 +27471,7 @@ var app = (function () {
     			transition_in(blockpropertiespanel.$$.fragment, local);
 
     			add_render_callback(() => {
+    				if (!current) return;
     				if (!div_transition) div_transition = create_bidirectional_transition(div, scale, {}, true);
     				div_transition.run(1);
     			});
@@ -27401,7 +27535,9 @@ var app = (function () {
     			insert_dev(target, div, anchor);
 
     			for (let i = 0; i < each_blocks.length; i += 1) {
-    				each_blocks[i].m(div, null);
+    				if (each_blocks[i]) {
+    					each_blocks[i].m(div, null);
+    				}
     			}
 
     			current = true;
@@ -27426,6 +27562,7 @@ var app = (function () {
     			}
 
     			add_render_callback(() => {
+    				if (!current) return;
     				if (!div_transition) div_transition = create_bidirectional_transition(div, scale, {}, true);
     				div_transition.run(1);
     			});
@@ -27725,7 +27862,7 @@ var app = (function () {
     	}
     }
 
-    /* src\client\svelte\components\editor\EditorBlockbarComponent.svelte generated by Svelte v3.50.1 */
+    /* src\client\svelte\components\editor\EditorBlockbarComponent.svelte generated by Svelte v3.59.2 */
     const file$5 = "src\\client\\svelte\\components\\editor\\EditorBlockbarComponent.svelte";
 
     function get_each_context$1(ctx, list, i) {
@@ -27789,7 +27926,7 @@ var app = (function () {
     			current = true;
 
     			if (!mounted) {
-    				dispose = listen_dev(div2, "click", stop_propagation(/*onComponentClick*/ ctx[8]), false, false, true);
+    				dispose = listen_dev(div2, "click", stop_propagation(/*onComponentClick*/ ctx[8]), false, false, true, false);
     				mounted = true;
     			}
     		},
@@ -27834,6 +27971,7 @@ var app = (function () {
     			transition_in(if_block);
 
     			add_render_callback(() => {
+    				if (!current) return;
     				if (!div2_transition) div2_transition = create_bidirectional_transition(div2, scale, {}, true);
     				div2_transition.run(1);
     			});
@@ -27899,7 +28037,9 @@ var app = (function () {
     			insert_dev(target, div, anchor);
 
     			for (let i = 0; i < each_blocks.length; i += 1) {
-    				each_blocks[i].m(div, null);
+    				if (each_blocks[i]) {
+    					each_blocks[i].m(div, null);
+    				}
     			}
 
     			current = true;
@@ -28214,6 +28354,12 @@ var app = (function () {
     		}
     	};
 
+    	$$self.$$.on_mount.push(function () {
+    		if (blocksMenu === undefined && !('blocksMenu' in $$props || $$self.$$.bound[$$self.$$.props['blocksMenu']])) {
+    			console.warn("<EditorBlockbarComponent> was created without expected prop 'blocksMenu'");
+    		}
+    	});
+
     	const writable_props = ['menuDepth', 'blocksMenu', 'directParent'];
 
     	Object.keys($$props).forEach(key => {
@@ -28297,13 +28443,6 @@ var app = (function () {
     			options,
     			id: create_fragment$5.name
     		});
-
-    		const { ctx } = this.$$;
-    		const props = options.props || {};
-
-    		if (/*blocksMenu*/ ctx[1] === undefined && !('blocksMenu' in props)) {
-    			console.warn("<EditorBlockbarComponent> was created without expected prop 'blocksMenu'");
-    		}
     	}
 
     	get menuDepth() {
@@ -28331,7 +28470,7 @@ var app = (function () {
     	}
     }
 
-    /* src\client\svelte\components\editor\EditorBlockbar.svelte generated by Svelte v3.50.1 */
+    /* src\client\svelte\components\editor\EditorBlockbar.svelte generated by Svelte v3.59.2 */
     const file$4 = "src\\client\\svelte\\components\\editor\\EditorBlockbar.svelte";
 
     function create_fragment$4(ctx) {
@@ -28459,7 +28598,7 @@ var app = (function () {
     	}
     }
 
-    /* src\client\svelte\components\editor\EditorCircuitActionsMenu.svelte generated by Svelte v3.50.1 */
+    /* src\client\svelte\components\editor\EditorCircuitActionsMenu.svelte generated by Svelte v3.59.2 */
     const file$3 = "src\\client\\svelte\\components\\editor\\EditorCircuitActionsMenu.svelte";
 
     // (87:2) <PointerzConfirm      color="green"      confirmTitle="Save and leave"      cancelTitle="Leave without saving"      let:confirm={confirmThis}      cancelFunction={() => {        Client.phaser.playSound("cancelClick");        leaveEditor();      }}      showConfirm={!circuitSaved}>
@@ -28490,7 +28629,7 @@ var app = (function () {
     			append_dev(div, img);
 
     			if (!mounted) {
-    				dispose = listen_dev(div, "click", click_handler, false, false, false);
+    				dispose = listen_dev(div, "click", click_handler, false, false, false, false);
     				mounted = true;
     			}
     		},
@@ -28574,7 +28713,7 @@ var app = (function () {
     			append_dev(div, img);
 
     			if (!mounted) {
-    				dispose = listen_dev(div, "click", click_handler_1, false, false, false);
+    				dispose = listen_dev(div, "click", click_handler_1, false, false, false, false);
     				mounted = true;
     			}
     		},
@@ -28834,8 +28973,8 @@ var app = (function () {
 
     			if (!mounted) {
     				dispose = [
-    					listen_dev(div1, "click", /*actionFunctions*/ ctx[4].save, false, false, false),
-    					listen_dev(div3, "click", /*actionFunctions*/ ctx[4].startValidationRace, false, false, false)
+    					listen_dev(div1, "click", /*actionFunctions*/ ctx[4].save, false, false, false, false),
+    					listen_dev(div3, "click", /*actionFunctions*/ ctx[4].startValidationRace, false, false, false, false)
     				];
 
     				mounted = true;
@@ -29079,7 +29218,7 @@ var app = (function () {
     	}
     }
 
-    /* src\client\svelte\pages\EditorOverlay.svelte generated by Svelte v3.50.1 */
+    /* src\client\svelte\pages\EditorOverlay.svelte generated by Svelte v3.59.2 */
     const file$2 = "src\\client\\svelte\\pages\\EditorOverlay.svelte";
 
     // (24:0) {#if loadingEditor}
@@ -29311,7 +29450,7 @@ var app = (function () {
     	}
     }
 
-    /* src\client\svelte\pages\CircuitVote.svelte generated by Svelte v3.50.1 */
+    /* src\client\svelte\pages\CircuitVote.svelte generated by Svelte v3.59.2 */
     const file$1 = "src\\client\\svelte\\pages\\CircuitVote.svelte";
 
     function get_each_context(ctx, list, i) {
@@ -29479,7 +29618,9 @@ var app = (function () {
     		},
     		m: function mount(target, anchor) {
     			for (let i = 0; i < each_blocks.length; i += 1) {
-    				each_blocks[i].m(target, anchor);
+    				if (each_blocks[i]) {
+    					each_blocks[i].m(target, anchor);
+    				}
     			}
 
     			insert_dev(target, each_1_anchor, anchor);
@@ -29623,6 +29764,7 @@ var app = (function () {
     			transition_in(if_block);
 
     			add_render_callback(() => {
+    				if (!current) return;
     				if (!div_transition) div_transition = create_bidirectional_transition(div, slide, {}, true);
     				div_transition.run(1);
     			});
@@ -30026,6 +30168,7 @@ var app = (function () {
     			transition_in(cell1.$$.fragment, local);
 
     			add_render_callback(() => {
+    				if (!current) return;
     				if (div2_outro) div2_outro.end(1);
     				div2_intro = create_in_transition(div2, fly, { delay: 400, duration: 400 });
     				div2_intro.start();
@@ -30303,9 +30446,7 @@ var app = (function () {
       playTheRightSoundtrack(newRoute);
     });
 
-    /* src\client\svelte\App.svelte generated by Svelte v3.50.1 */
-
-    const { console: console_1 } = globals;
+    /* src\client\svelte\App.svelte generated by Svelte v3.59.2 */
     const file = "src\\client\\svelte\\App.svelte";
 
     function create_fragment(ctx) {
@@ -30371,7 +30512,7 @@ var app = (function () {
     			t1 = space();
     			create_component(closabledislay1.$$.fragment);
     			attr_dev(div, "class", "notifications-container svelte-ophuo7");
-    			add_location(div, file, 35, 0, 970);
+    			add_location(div, file, 35, 0, 928);
     		},
     		l: function claim(nodes) {
     			throw new Error("options.hydrate only works if the component was compiled with the `hydratable: true` option");
@@ -30461,8 +30602,7 @@ var app = (function () {
 
     	Client$1.svelte.updateUserModel = function (newUserModel) {
     		set_store_value(userModel, $userModel = newUserModel, $userModel);
-    		console.log($userModel.nfts.filter(nft => nft.nftSelected));
-    		Client$1.phaser.updateVisualiserNFTs && Client$1.phaser.updateVisualiserNFTs($userModel.nfts.filter(nft => nft.nftSelected));
+    		Client$1.phaser.updateVisualiserNFTs && $userModel.nfts && Client$1.phaser.updateVisualiserNFTs($userModel.nfts.filter(nft => nft.nftSelected));
     		let ret = Client$1.unlockCryptoAccount($userModel);
 
     		if (ret && ret.retError) {
@@ -30478,7 +30618,7 @@ var app = (function () {
     	const writable_props = [];
 
     	Object.keys($$props).forEach(key => {
-    		if (!~writable_props.indexOf(key) && key.slice(0, 2) !== '$$' && key !== 'slot') console_1.warn(`<App> was created with unknown prop '${key}'`);
+    		if (!~writable_props.indexOf(key) && key.slice(0, 2) !== '$$' && key !== 'slot') console.warn(`<App> was created with unknown prop '${key}'`);
     	});
 
     	function closabledislay0_displayedText_binding(value) {

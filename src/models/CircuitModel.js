@@ -12,10 +12,10 @@ module.exports = function (Server) {
     try {
       let newCircuit = new Server.CircuitModel(circuitData);
       await newCircuit.save();
-      return {};
+      Server.infoLogging("Create circuit", "success", newCircuit._id);
+      return newCircuit;
     } catch (err) {
-      Server.errorLogging("Create new circuit", err);
-      return { retError: err };
+      Server.errorLogging("Create circuit", err);
     }
   };
 
@@ -28,6 +28,11 @@ module.exports = function (Server) {
           { sort: { upvotes: -1 } }
         );
         await Server.CircuitModel.deleteMany({ campaignPublicationTime: -1 });
+        Server.infoLogging(
+          "Publish winning circuit",
+          "success",
+          circuitOfTheWeek._id
+        );
         return circuitOfTheWeek;
       } catch (err) {
         Server.errorLogging("Publish winning circuit", err);

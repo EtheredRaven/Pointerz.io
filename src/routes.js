@@ -1,17 +1,37 @@
 const express = require("express");
 module.exports = function (Server) {
   Server.app.use("/", express.static(__dirname + "/public"));
+
   Server.app.get("/", function (req, res) {
     res.sendFile(__dirname + "/public/index.html");
   });
+
   Server.app.get("/api/get_nft_metadata/:tokenId", async function (req, res) {
-    if (!req.params.tokenId || isNaN(req.params.tokenId)) {
-      return res.status(400).send({ error: "Invalid token id" });
+    const { tokenId } = req.params;
+
+    try {
+      // Input validation
+      if (!tokenId || isNaN(tokenId)) {
+        throw new Error("Invalid token id");
+      }
+
+      // Single NFT fetch
+      const nft = await Server.NftModel.getNft(tokenId, true);
+      if (!nft) {
+        throw new Error("NFT not found");
+      }
+
+      // Success logging and response
+      Server.infoLogging("get_nft_metadata", "", "success", tokenId);
+      return res.json(nft);
+    } catch (error) {
+      // Error logging
+      Server.errorLogging("get_nft_metadata", "", error.message, tokenId);
+
+      // Error response
+      return res
+        .status(error.message === "NFT not found" ? 404 : 400)
+        .json({ error: error.message });
     }
-    let ret = await Server.NftModel.getNft(req.params.tokenId, true);
-    if (!ret) {
-      return res.status(404).send({ error: "NFT not found" });
-    }
-    return res.send(await Server.NftModel.getNft(req.params.tokenId, true));
   });
 };

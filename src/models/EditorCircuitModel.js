@@ -1,4 +1,5 @@
 const { Promise } = require("mongoose");
+const Constants = require("../client/js/game/logic/Constants");
 
 module.exports = function (Server) {
   Server.EditorCircuitModel = Server.mongoose.model(
@@ -32,8 +33,8 @@ module.exports = function (Server) {
   ) {
     let newEditorCircuit = new Server.EditorCircuitModel({
       locked: false,
-      width: Server.gameConstants.gameWidth,
-      height: Server.gameConstants.gameHeight,
+      width: Constants.gameWidth,
+      height: Constants.gameHeight,
       lapsNumber: 1,
       creationDate: Date.now(),
       name: newCircuitName,
@@ -44,10 +45,15 @@ module.exports = function (Server) {
 
     try {
       await newEditorCircuit.save();
+      Server.infoLogging(
+        "Create editor circuit",
+        "success",
+        userId,
+        newEditorCircuit._id
+      );
       return { newEditorCircuit: newEditorCircuit };
     } catch (err) {
       Server.errorLogging("Create editor circuit", err);
-      return { retError: err };
     }
   };
 
@@ -65,17 +71,22 @@ module.exports = function (Server) {
       await Promise.all(deleteReplayPromises);
       circuitObject.runs = [];
 
-      await Server.EditorCircuitModel.findOneAndUpdate(
+      let ret = await Server.EditorCircuitModel.findOneAndUpdate(
         {
           _id: circuitObject._id,
           _creatorId: Server.CircuitModel.toObjectId(userId),
         },
         circuitObject
       );
-      return {};
+      Server.infoLogging(
+        "Save editor circuit",
+        "success",
+        circuitObject._creatorId,
+        circuitObject._id
+      );
+      return ret;
     } catch (err) {
       Server.errorLogging("Save editor circuit", err);
-      return { retError: err };
     }
   };
 
@@ -88,13 +99,19 @@ module.exports = function (Server) {
         _id: Server.CircuitModel.toObjectId(editorCircuitId),
         _creatorId: Server.CircuitModel.toObjectId(userId),
       }).exec();
+
+      Server.infoLogging(
+        "Delete editor circuit",
+        "success",
+        userId,
+        deletedCircuit._id
+      );
       return {
         deletedEditorCircuitId: editorCircuitId,
         deletedEditorCircuitName: deletedCircuit.name,
       };
     } catch (err) {
       Server.errorLogging("Delete editor circuit", err);
-      return { retError: err };
     }
   };
 };
