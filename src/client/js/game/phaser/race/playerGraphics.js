@@ -129,8 +129,8 @@ module.exports = function (Client) {
 
     let applyNFTs = function () {
       // Handle Body NFT with mask
-      if (!selectedNFTs.Body.isDefault) {
-        const bodyKey = `nft_${selectedNFTs.Body.nftName}`;
+      const bodyKey = `nft_${selectedNFTs?.Body?.nftName}`;
+      if (!selectedNFTs.Body.isDefault && selectedNFTs.Body.nftMask) {
         if (!player.nftBodyMask) {
           player.nftBodyMask = phaserScene.make.image({
             x: player.x,
@@ -144,7 +144,10 @@ module.exports = function (Client) {
         player.sprite.setTexture(bodyKey);
         player.sprite.setMask(player.nftBodyMask.createBitmapMask());
       } else {
-        player.sprite.setTexture("spaceship");
+        console.log(selectedNFTs);
+        selectedNFTs.Body.isDefault
+          ? player.sprite.setTexture("spaceship")
+          : player.sprite.setTexture(bodyKey);
         player.sprite.setMask(null);
         player.nftBodyMask = undefined;
       }

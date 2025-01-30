@@ -97,6 +97,7 @@ module.exports = function (Server) {
       socket.userModel = {
         _id: Server.mongoose.Types.ObjectId(),
         username: playerName,
+        nfts: [],
       };
 
       // Load the circuits and there is no records for non-logged in user

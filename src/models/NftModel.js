@@ -5,6 +5,7 @@ module.exports = function (Server) {
     nftName: String,
     nftCategory: String,
     nftRarity: String,
+    nftMask: Boolean,
     nftRawMetadata: String,
     nftReference: Number,
   });

@@ -9,6 +9,7 @@ module.exports = function (Server) {
         nftId: Number,
         nftName: String,
         nftCategory: String,
+        nftMask: Boolean,
         nftSelected: Boolean,
       },
     ],

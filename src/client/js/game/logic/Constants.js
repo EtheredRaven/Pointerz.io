@@ -193,7 +193,7 @@ Constants.angleSnap = (2 * Math.PI * 5) / 360;
 
 // Spaceship
 Constants.spaceship = {};
-Constants.spaceship.scale = 0.12;
+Constants.spaceship.scale = 0.14;
 Constants.spaceship.spritePoints = [
   { x: 156, y: 0 },
   { x: 0, y: -60 },
@@ -206,7 +206,7 @@ Constants.spaceship.thrustAnchorPoint = {
   x: -134,
   y: 0,
 };
-Constants.spaceship.thrustScale = 0.15;
+Constants.spaceship.thrustScale = 0.18;
 Constants.spaceship.wheelsAnchorPoints = [
   { x: 107, y: -40 },
   { x: 107, y: 40 },

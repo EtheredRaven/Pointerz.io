@@ -15,6 +15,7 @@ module.exports = function (Server) {
         nftRarity: { type: String, required: true },
         nftRawMetadata: { type: String, required: true },
         nftSelected: Boolean,
+        nftMask: Boolean,
       },
     ],
     circuitVotes: [Server.mongoose.Schema.Types.ObjectId],
