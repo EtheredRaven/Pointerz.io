@@ -15,7 +15,7 @@
   import Cell from "../components/ui/Cell.svelte";
   import TextBlock from "../components/ui/TextBlock.svelte";
   import PointerzTable from "../components/ui/PointerzTable.svelte";
-  import BackButton from "../components/ui/BackButton.svelte";
+  import ParametersButtons from "../components/ui/ParametersButtons.svelte";
   import OfflineRedirect from "../components/ui/OfflineRedirect.svelte";
 
   let selectedCircuitIndex; // The selected circuit
@@ -124,9 +124,7 @@
 <AppLayout>
   <OfflineRedirect />
   <div in:fly={{ delay: 400, duration: 400 }} out:fade={{ duration: 400 }}>
-    {#if $loggedIn}
-      <BackButton backHref="/privatemenu" />
-    {/if}
+    <ParametersButtons backHref="/privatemenu" showBackButton={$loggedIn} />
     <FlexContainer flexWrap="wrap" justifyContent="center">
       <Cell
         title="Circuits"

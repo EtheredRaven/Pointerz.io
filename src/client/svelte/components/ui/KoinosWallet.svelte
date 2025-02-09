@@ -281,13 +281,12 @@
 <style>
   .pointerzButtonCointainer {
     position: absolute;
-    top: 8px;
-    right: 8px;
+    top: 12px;
+    right: 12px;
     display: grid;
     grid-auto-flow: column;
     grid-gap: 12px;
     border-radius: 8px;
-    padding: 10px;
     z-index: 1;
   }
 

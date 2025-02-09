@@ -13,4 +13,8 @@ module.exports = function (Client) {
   window.addEventListener("beforeunload", function (event) {
     Client.socket.emit("disconnect");
   });
+
+  Client.socket.on("disconnect", function () {
+    location.reload();
+  });
 };

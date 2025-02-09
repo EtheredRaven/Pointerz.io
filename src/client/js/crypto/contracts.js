@@ -3,11 +3,15 @@ const pointerzNFTsAbi = require("./abi/pointerzNFTsAbi.json");
 const kanvasContractAbi = require("./abi/kanvasAbi.json");
 const { Client } = require("koinos-rpc");
 
-module.exports = async function (Server) {
-  Server.PROVIDERS_URL = [
-    "https://api.koinos.io",
-    "https://api.koinosblocks.com",
-  ];
+module.exports = async function (Server, reverseProviders = false) {
+  !Server.PROVIDERS_URL &&
+    (Server.PROVIDERS_URL = [
+      "https://api.koinosblocks.com",
+      "https://api.koinos.io",
+    ]);
+  if (reverseProviders) {
+    Server.PROVIDERS_URL.reverse();
+  }
   Server.provider = new Provider(Server.PROVIDERS_URL); // koilib
   Server.client = new Client(Server.PROVIDERS_URL); // koinos-rpc
   Server.kanvasContractAddress = "1LeWGhDVD8g5rGCL4aDegEf9fKyTL1KhsS";

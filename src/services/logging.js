@@ -61,4 +61,8 @@ module.exports = function (Server) {
       );
     };
   };
+
+  process.on("unhandledRejection", (error) => {
+    Server.errorLogging("UnhandledPromiseRejection", error);
+  });
 };

@@ -4,7 +4,7 @@
   import AppLayout from "./AppLayout.svelte";
   import PointerzButton from "../components/ui/PointerzButton.svelte";
   import OfflineRedirect from "../components/ui/OfflineRedirect.svelte";
-  import BackButton from "../components/ui/BackButton.svelte";
+  import ParametersButtons from "../components/ui/ParametersButtons.svelte";
   import { Client, userModel } from "../misc/store";
   import { onMount, onDestroy } from "svelte";
 
@@ -112,9 +112,7 @@
 
 <AppLayout>
   <OfflineRedirect />
-  {#if isModifyingSpaceship}
-    <BackButton {goBack} />
-  {/if}
+  <ParametersButtons {goBack} showBackButton={isModifyingSpaceship} />
 
   <div
     in:fly={{ delay: 400, duration: 400 }}
@@ -201,6 +199,21 @@
                     </div>
                   </div>
                 {/each}
+                <div
+                  class="item-card"
+                  on:click={() =>
+                    window.open(
+                      "https://kollection.app/collection/" +
+                        Client.pointerzNFTsContractAddress,
+                      "_blank"
+                    )}>
+                  <div class="item-info">
+                    <img
+                      class="buy-nft-icon"
+                      src="assets/images/blockProperties/addComponent.png"
+                      alt="Buy" />
+                  </div>
+                </div>
               </div>
             </div>
           {/each}
@@ -481,6 +494,11 @@
     font-size: 14px;
     font-family: "Nunito";
     background: var(--container-blocks-bg);
+  }
+
+  .buy-nft-icon {
+    width: 52px;
+    vertical-align: middle;
   }
 
   @media (max-width: 1160px) {

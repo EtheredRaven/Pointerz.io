@@ -32,7 +32,7 @@ class TurnBlock extends PredefinedBlock {
 
   getHandles() {
     let arc1 = this.getArcAtPosition(1);
-    let arc2 = this.getArcAtPosition(2);
+    let arc2 = this.getArcAtPosition(2) || arc1;
     let arc1Handles = arc1.getHandles();
     let arc2Handles = arc2.getHandles();
 

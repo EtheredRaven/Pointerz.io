@@ -78,7 +78,7 @@
 
   button {
     text-align: left;
-    color: #eee;
+    color: var(--white-color);
     font-family: "Nunito Bold";
     font-size: 20px;
     border: none;

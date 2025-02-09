@@ -15,7 +15,7 @@
   import AppLayout from "./AppLayout.svelte";
   import Cell from "../components/ui/Cell.svelte";
   import TextBlock from "../components/ui/TextBlock.svelte";
-  import BackButton from "../components/ui/BackButton.svelte";
+  import ParametersButtons from "../components/ui/ParametersButtons.svelte";
 
   let selectedCircuitId;
   $: selectedCircuit = $loadedVoteCircuits.find(
@@ -73,7 +73,7 @@
     in:fly={{ delay: 400, duration: 400 }}
     out:fade={{ duration: 400 }}
     id="menuContainer">
-    <BackButton backHref="/privatemenu" />
+    <ParametersButtons backHref="/privatemenu" />
     <div class="circuitsContainer">
       <Cell
         title="Circuits for vote"

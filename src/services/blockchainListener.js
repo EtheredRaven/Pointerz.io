@@ -71,7 +71,7 @@ module.exports = async function (Server) {
     for (let i = blocksToProcess.length - 1; i >= 0; i--) {
       let block = blocksToProcess[i];
 
-      // Server.infoLogging("New block", "", block.block_height, block.block_id);
+      Server.infoLogging("New block", "", block.block_height, block.block_id);
 
       // Process the events
       let transactionReceipts = block.receipt.transaction_receipts;
@@ -105,11 +105,22 @@ module.exports = async function (Server) {
     }
   };
 
+  let getLastBlock = async function () {
+    try {
+      let lastBlock = await Server.client.blockStore.getHighestBlock();
+      return lastBlock;
+    } catch (err) {
+      Server.errorLogging("Getting last block", "", err);
+      require("../client/js/crypto/contracts")(Server, true);
+      Server.infoLogging("Changing the provider");
+      let lastBlock = await Server.client.blockStore.getHighestBlock();
+      return lastBlock;
+    }
+  };
+
   // Check for events in the new blocks and process them
-  let lastBlockHeight = Number(
-    (await Server.client.blockStore.getHighestBlock()).topology.height
-  );
-  setInterval(async () => {
+  let lastBlockHeight = Number((await getLastBlock()).topology.height);
+  let blockRetrievingInterval = setInterval(async () => {
     if (Server.TEST_ENV) return true;
     try {
       let newBlock = (await Server.client.blockStore.getHighestBlock())

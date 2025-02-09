@@ -130879,11 +130879,15 @@ const pointerzNFTsAbi = require("./abi/pointerzNFTsAbi.json");
 const kanvasContractAbi = require("./abi/kanvasAbi.json");
 const { Client } = require("koinos-rpc");
 
-module.exports = async function (Server) {
-  Server.PROVIDERS_URL = [
-    "https://api.koinos.io",
-    "https://api.koinosblocks.com",
-  ];
+module.exports = async function (Server, reverseProviders = false) {
+  !Server.PROVIDERS_URL &&
+    (Server.PROVIDERS_URL = [
+      "https://api.koinosblocks.com",
+      "https://api.koinos.io",
+    ]);
+  if (reverseProviders) {
+    Server.PROVIDERS_URL.reverse();
+  }
   Server.provider = new Provider(Server.PROVIDERS_URL); // koilib
   Server.client = new Client(Server.PROVIDERS_URL); // koinos-rpc
   Server.kanvasContractAddress = "1LeWGhDVD8g5rGCL4aDegEf9fKyTL1KhsS";
@@ -131432,7 +131436,7 @@ Constants.angleSnap = (2 * Math.PI * 5) / 360;
 
 // Spaceship
 Constants.spaceship = {};
-Constants.spaceship.scale = 0.14;
+Constants.spaceship.scale = 0.135;
 Constants.spaceship.spritePoints = [
   { x: 156, y: 0 },
   { x: 0, y: -60 },
@@ -131445,7 +131449,7 @@ Constants.spaceship.thrustAnchorPoint = {
   x: -134,
   y: 0,
 };
-Constants.spaceship.thrustScale = 0.18;
+Constants.spaceship.thrustScale = 0.175;
 Constants.spaceship.wheelsAnchorPoints = [
   { x: 107, y: -40 },
   { x: 107, y: 40 },
@@ -133897,7 +133901,7 @@ class TurnBlock extends PredefinedBlock {
 
   getHandles() {
     let arc1 = this.getArcAtPosition(1);
-    let arc2 = this.getArcAtPosition(2);
+    let arc2 = this.getArcAtPosition(2) || arc1;
     let arc1Handles = arc1.getHandles();
     let arc2Handles = arc2.getHandles();
 
@@ -136779,8 +136783,35 @@ module.exports = function (Client) {
 
 },{"./controlsFunctions":594,"./graphicsConstants":595,"./soundsFunctions":597,"./spritesFunctions":598}],597:[function(require,module,exports){
 module.exports = function (Client) {
-  const SOUNDTRACK_VOLUME = 0.3;
-  const SOUND_EFFECT_VOLUME = 0.45;
+  const DEFAULT_MUSIC_VOLUME = 0.3;
+  const DEFAULT_SOUND_VOLUME = 0.45;
+  const MUSIC_VOLUME_LOCAL_STORAGE_KEY = "pointerzMusicVolume";
+  const SOUND_VOLUME_LOCAL_STORAGE_KEY = "pointerzSoundVolume";
+
+  Client.musicVolume = parseFloat(
+    localStorage.getItem(MUSIC_VOLUME_LOCAL_STORAGE_KEY) || DEFAULT_MUSIC_VOLUME
+  );
+  Client.soundVolume = parseFloat(
+    localStorage.getItem(SOUND_VOLUME_LOCAL_STORAGE_KEY) || DEFAULT_SOUND_VOLUME
+  );
+
+  Client.setMusicVolume = function (volume) {
+    Client.musicVolume = volume;
+    localStorage.setItem(MUSIC_VOLUME_LOCAL_STORAGE_KEY, volume);
+    if (Client.soundtrack) {
+      Client.soundtrack.setVolume(volume);
+    }
+  };
+
+  Client.setSoundVolume = function (volume) {
+    Client.soundVolume = volume;
+    localStorage.setItem(SOUND_VOLUME_LOCAL_STORAGE_KEY, volume);
+    Client.engineSound && Client.engineSound.setVolume(volume);
+    Client.thrustSound && Client.thrustSound.setVolume(volume);
+    Client.highPitchSpaceshipThrustSound &&
+      Client.highPitchSpaceshipThrustSound.setVolume(volume);
+    Client.driftSound && Client.driftSound.setVolume(volume);
+  };
 
   const FADE_DURATION_SHORT = 100; // ms
   const FADE_DURATION_LONG = 500; // ms
@@ -136801,7 +136832,7 @@ module.exports = function (Client) {
     if (Client.soundtrack && Client.soundtrack.key == "mainsoundtrack") return;
     Client.phaser.stopSoundtrack();
     Client.soundtrack = Client.phaser.scene.sound.add("mainsoundtrack", {
-      volume: SOUNDTRACK_VOLUME,
+      volume: Client.musicVolume,
     });
 
     Client.soundtrack.play();
@@ -136814,7 +136845,7 @@ module.exports = function (Client) {
     Client.phaser.stopSoundtrack();
     let random = Math.floor(Math.random() * Client.NUMBER_OF_SOUNDTRACKS) + 1;
     Client.soundtrack = Client.phaser.scene.sound.add("soundtrack" + random, {
-      volume: SOUNDTRACK_VOLUME,
+      volume: Client.musicVolume,
     });
     // Play at a lower volume
     Client.soundtrack.play();
@@ -136829,7 +136860,7 @@ module.exports = function (Client) {
   Client.phaser.playSound = function (sound, volume = 1) {
     if (!Client.phaser.scene) return;
     let soundEffect = Client.phaser.scene.sound.add(sound, {
-      volume: SOUND_EFFECT_VOLUME * volume,
+      volume: Client.soundVolume * volume,
     });
     soundEffect.loop = false;
     soundEffect.play();
@@ -136952,7 +136983,7 @@ module.exports = function (Client) {
         Client.engineSound.isStopping = false;
         smoothVolumeTransition(
           Client.engineSound,
-          SOUND_EFFECT_VOLUME,
+          Client.soundVolume,
           FADE_DURATION_SHORT,
           null,
           0
@@ -137012,7 +137043,7 @@ module.exports = function (Client) {
       Client.thrustSound.isStopping = false;
       smoothVolumeTransition(
         Client.thrustSound,
-        SOUND_EFFECT_VOLUME,
+        Client.soundVolume,
         FADE_DURATION_LONG,
         null,
         0
@@ -137034,7 +137065,7 @@ module.exports = function (Client) {
         // Update volume dynamically
         smoothVolumeTransition(
           Client.highPitchSpaceshipThrustSound,
-          highPitchSpaceshipThrustVolume * SOUND_EFFECT_VOLUME,
+          highPitchSpaceshipThrustVolume * Client.soundVolume,
           FADE_DURATION_SHORT
         );
       }
@@ -137085,7 +137116,7 @@ module.exports = function (Client) {
     if (!Client.phaser.scene) return;
     if (!Client.driftSound) {
       Client.driftSound = Client.phaser.scene.sound.add("drift", {
-        volume: SOUND_EFFECT_VOLUME,
+        volume: Client.soundVolume,
         loop: false,
       });
       Client.driftSound.play();
@@ -138153,6 +138184,10 @@ module.exports = function (Client) {
   // Disconnection
   window.addEventListener("beforeunload", function (event) {
     Client.socket.emit("disconnect");
+  });
+
+  Client.socket.on("disconnect", function () {
+    location.reload();
   });
 };
 

@@ -14,6 +14,7 @@ module.exports = function (Server) {
       socket,
       "disconnect",
       function () {
+        Server.cleanupRateLimit(socket);
         Server.leaveCurrentRoom(socket, false);
         Server.infoLogging("User disconnected", socket);
       },
