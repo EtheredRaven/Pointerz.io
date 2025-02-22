@@ -168,6 +168,8 @@ module.exports = function (Server, circuitModel) {
 
     // Construct the request to the database
     let req = [];
+
+    // Only take the circuits that are published if we are looking for campaign circuits
     let match = {
       $match: {},
     };
@@ -178,6 +180,7 @@ module.exports = function (Server, circuitModel) {
           : { $lte: -1 });
     req.push(match);
 
+    // Sort the circuits by publication time
     req.push({
       $sort: { campaignPublicationTime: 1 },
     });
@@ -251,6 +254,11 @@ module.exports = function (Server, circuitModel) {
     if (circuitIds.length > 0) {
       req.push({ $match: { _id: { $in: circuitIds } } });
     }
+
+    // Sort the records/circuits by publication time
+    req.push({
+      $sort: { campaignPublicationTime: 1 },
+    });
     req.push(
       {
         $addFields: {

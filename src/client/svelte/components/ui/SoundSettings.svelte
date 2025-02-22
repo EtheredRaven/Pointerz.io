@@ -14,7 +14,6 @@
     const value = parseFloat(event.target.value) / 100;
     Client.setMusicVolume(value);
     musicVolume = Client.musicVolume;
-    console.log("Music volume updated to", musicVolume);
   }
 
   // Update sound effects volume
@@ -22,7 +21,6 @@
     const value = parseFloat(event.target.value) / 100;
     Client.setSoundVolume(value);
     soundVolume = Client.soundVolume;
-    console.log("Sound effects volume updated to", soundVolume);
   }
 </script>
 

@@ -136,7 +136,7 @@
         <FlexContainer>
           <PointerzButton
             imagePath="assets/images/menu/log.png"
-            buttonColor="grey"
+            buttonColor="darkGrey"
             on:click={showLoginForm}
             elementsPerRow="2"
             important
@@ -146,7 +146,7 @@
           </PointerzButton>
           <PointerzButton
             imagePath="assets/images/menu/signup.png"
-            buttonColor="grey"
+            buttonColor="darkGrey"
             on:click={showSigninForm}
             elementsPerRow="2"
             lastElementOfRow

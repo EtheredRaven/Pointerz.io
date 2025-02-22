@@ -8,8 +8,32 @@ const RATE_LIMIT = {
   excludedEvents: ["new_position"], // Events that bypass rate limiting
 };
 
+const CONNECTION_LIMITS = {
+  maxConnectionsPerIP: 3,
+  maxReconnectAttempts: 3,
+  reconnectTimeout: 5000, // 5 seconds
+};
+
 module.exports = function (Server) {
   Server.socketRateLimits = new Map();
+  Server.ipConnections = new Map();
+  Server.userSockets = new Map(); // userId -> socketId map
+
+  // Add socket disconnect cleanup
+  Server.disconnectUserSockets = function (userId, exceptSocket = {}) {
+    const existingSocketId = Server.userSockets.get(userId);
+    if (existingSocketId && existingSocketId !== exceptSocket.id) {
+      const existingSocket = Server.io.sockets.sockets.get(existingSocketId);
+      if (existingSocket) {
+        Server.infoLogging(
+          "Disconnecting duplicate user socket",
+          existingSocket,
+          exceptSocket
+        );
+        existingSocket.disconnect(true);
+      }
+    }
+  };
 
   // Rate limiter function
   Server.checkRateLimit = function (socket, eventName) {
@@ -148,4 +172,72 @@ module.exports = function (Server) {
       throw new Error("The specified room doesn't exist");
     }
   };
+
+  // Connection limiting middleware
+  Server.checkConnectionLimit = function (socket, next) {
+    const clientIP = socket.handshake.address;
+
+    // Get current connections for this IP
+    const currentConnections = Server.ipConnections.get(clientIP) || {
+      count: 0,
+      reconnectAttempts: 0,
+      lastReconnectTime: 0,
+    };
+
+    // Check reconnection rate
+    const now = Date.now();
+    if (
+      now - currentConnections.lastReconnectTime <
+      CONNECTION_LIMITS.reconnectTimeout
+    ) {
+      currentConnections.reconnectAttempts++;
+
+      if (
+        currentConnections.reconnectAttempts >
+        CONNECTION_LIMITS.maxReconnectAttempts
+      ) {
+        Server.errorLogging(
+          "Connection blocked - Too many reconnect attempts",
+          {
+            ip: clientIP,
+            attempts: currentConnections.reconnectAttempts,
+          }
+        );
+        return next(new Error("Too many reconnection attempts"));
+      }
+    } else {
+      currentConnections.reconnectAttempts = 0;
+    }
+    // Check total connections
+    if (currentConnections.count >= CONNECTION_LIMITS.maxConnectionsPerIP) {
+      Server.errorLogging(
+        "Connection blocked - Too many connections",
+        clientIP,
+        currentConnections.count
+      );
+      return next(new Error("Too many connections from this IP"));
+    }
+
+    // Update connection tracking
+    currentConnections.count++;
+    currentConnections.lastReconnectTime = now;
+    Server.ipConnections.set(clientIP, currentConnections);
+
+    // Add disconnect handler
+    socket.on("disconnect", () => {
+      const connections = Server.ipConnections.get(clientIP);
+      if (connections) {
+        connections.count--;
+        if (connections.count <= 0) {
+          Server.ipConnections.delete(clientIP);
+        } else {
+          Server.ipConnections.set(clientIP, connections);
+        }
+      }
+    });
+
+    next();
+  };
+
+  Server.io.use(Server.checkConnectionLimit);
 };

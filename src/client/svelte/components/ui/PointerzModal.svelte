@@ -126,6 +126,17 @@
     --confirm-btn-color: var(--almost-white-color);
   }
 
+  .darkBlue {
+    --actions-bg-color: var(--dark-blue-color);
+    --actions-box-shadow: var(--dark-blue-shadow-color);
+    --confirm-btn-bg: var(--dark-blue-shadow-color);
+    --confirm-btn-bg-hover: var(--dark-blue-shadow-color);
+    --modal-text-color: var(--almost-white-color);
+    --cancel-btn-color: var(--almost-white-color);
+    --cancel-btn-color-hover: var(--almost-white-color);
+    --confirm-btn-color: var(--almost-white-color);
+  }
+
   .message-title {
     font-size: 22px;
     font-weight: 500;

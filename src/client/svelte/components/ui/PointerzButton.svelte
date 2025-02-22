@@ -13,6 +13,8 @@
   export let fullHeight = false;
   export let clickable = true;
   export let noSound = false;
+  export let noShadow = false;
+  export let outline = false;
 
   export let elementsPerRow = 1;
   export let lastElementOfRow = elementsPerRow == 1 ? true : false;
@@ -22,18 +24,37 @@
 
   let multicolorClass = multicolor ? "multicolorButton" : "";
   let importantClass = important ? "importantButton" : "";
+  let noShadowClass = noShadow ? "noShadow" : "";
 
   function proceedClick() {
     !noSound && Client.phaser.playSound("buttonClick");
     dispatch("click");
   }
+
+  function getLighterColor(buttonColor) {
+    if (!buttonColor) return "";
+    // If it starts with 'dark', remove it and use the base color
+    if (buttonColor.startsWith("dark")) {
+      return buttonColor.replace("dark", "").toLowerCase();
+    }
+    // For non-dark colors, return the same color
+    return buttonColor.toLowerCase();
+  }
+
+  function getShadowVar(buttonColor) {
+    const lighterColor = getLighterColor(buttonColor);
+    if (!lighterColor) return "";
+    // Use the shadow color of the lighter version
+    return `var(--${lighterColor}-shadow-color)`;
+  }
 </script>
 
 <button
-  class="{multicolorClass} {importantClass} {buttonColor} {animating
+  class="{multicolorClass} {importantClass} {buttonColor} {noShadowClass} {animating
     ? 'animatingHover'
-    : ''} {clickable ? '' : 'unclickable'}"
+    : ''} {clickable ? '' : 'unclickable'} {outline ? 'outline' : ''}"
   style="
+    --button-hover-color: {getShadowVar(buttonColor)};
     width: {'calc(' +
     100 / elementsPerRow +
     '% - ' +
@@ -142,6 +163,10 @@
     box-shadow: 0 4px var(--dark-blue-shadow-color);
   }
 
+  .darkDarkBlue {
+    background: var(--dark-blue-shadow-color);
+  }
+
   .purple {
     background-color: var(--purple-color);
     box-shadow: 0 4px var(--purple-shadow-color);
@@ -189,7 +214,7 @@
   }
 
   .animatingHover:hover {
-    box-shadow: 0 4px var(--blue-shadow-color);
+    box-shadow: 0 4px var(--button-shadow-color);
   }
 
   .animatingHover:active {
@@ -202,17 +227,25 @@
     height: 100%;
     position: absolute;
     transition: all 0.5s ease;
-    background-color: var(--blue-color);
+    background-color: var(--button-hover-color);
+    opacity: 0.8;
   }
 
   .animatingHover:before {
     top: 0;
     left: -100%;
+    z-index: 1; /* Ensure hover effect is above button content */
   }
 
   .animatingHover:hover:before,
   .animatingHover:active:before {
     left: 0;
+  }
+
+  /* Add this to keep content visible */
+  button > p {
+    position: relative;
+    z-index: 2;
   }
 
   button:active {
@@ -228,5 +261,15 @@
 
   .imageOnly {
     margin-right: 0px;
+  }
+
+  .noShadow {
+    box-shadow: none;
+  }
+
+  .outline {
+    background: none;
+    border: 1px solid var(--white-color);
+    color: var(--white-color);
   }
 </style>

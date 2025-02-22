@@ -215,18 +215,21 @@ Constants.spaceship.wheelsAnchorPoints = [
 
 Constants.defaultNFTs = {
   Body: {
+    nftId: -1,
     nftName: "Default Body",
     nftCategory: "Body",
     nftRarity: "4",
     isDefault: true,
   },
   Wheels: {
+    nftId: -2,
     nftName: "Default Wheels",
     nftCategory: "Wheels",
     nftRarity: "4",
     isDefault: true,
   },
   Flame: {
+    nftId: -3,
     nftName: "Default Flame",
     nftCategory: "Flame",
     nftRarity: "4",
@@ -315,5 +318,7 @@ Constants.thrustDriftAdditionRotationRelativeForce = 0.7;
 
 Constants.boostDuration = 10;
 Constants.boostRelativeForce = 2;
+
+Constants.MAX_ALLOWED_RUN_TIME = 30 * 60 * 1000; // 30 minutes
 
 module.exports = Constants;

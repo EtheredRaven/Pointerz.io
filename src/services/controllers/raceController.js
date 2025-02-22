@@ -31,6 +31,21 @@ module.exports = function (Server) {
         ? socket.userRecord.run.runTime
         : Infinity;
 
+    if (runTime > Server.Constants.MAX_ALLOWED_RUN_TIME) {
+      Server.emitErrorEvent(
+        socket,
+        "Run time too long (max allowed : " +
+          Server.Constants.MAX_ALLOWED_RUN_TIME / 1000 / 60 +
+          " min)"
+      );
+      return Server.errorLogging(
+        "End race",
+        socket,
+        "error",
+        "Run time too long : " + runTime
+      );
+    }
+
     Server.infoLogging(
       "End race",
       socket,

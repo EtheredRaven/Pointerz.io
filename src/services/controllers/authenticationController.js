@@ -125,6 +125,11 @@ module.exports = function (Server) {
           socket.loggedIn = true;
           socket.userModel = userModel;
 
+          // Disconnect any existing sockets for this user
+          Server.disconnectUserSockets(userModel._id.toString(), socket);
+          // Track this socket for the user
+          Server.userSockets.set(userModel._id.toString(), socket.id);
+
           // Load the circuits and the records
           let promises = [
             Server.CircuitModel.getCircuits(userModel._id),

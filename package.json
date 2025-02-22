@@ -20,11 +20,13 @@
   "license": "MIT",
   "dependencies": {
     "bcrypt": "^5.0.0",
+    "bcryptjs": "^2.4.3",
     "browserify": "^16.2.3",
     "bson": "^4.7.0",
     "crypto-js": "^4.2.0",
     "express": "^4.15.2",
     "intersects": "^2.7.2",
+    "jsonwebtoken": "^9.0.2",
     "kld-intersections": "^0.7.0",
     "koilib": "^8.0.0",
     "koinos-rpc": "^1.1.0",

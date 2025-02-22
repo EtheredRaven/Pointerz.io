@@ -144,7 +144,6 @@ module.exports = function (Client) {
         player.sprite.setTexture(bodyKey);
         player.sprite.setMask(player.nftBodyMask.createBitmapMask());
       } else {
-        console.log(selectedNFTs);
         selectedNFTs.Body.isDefault
           ? player.sprite.setTexture("spaceship")
           : player.sprite.setTexture(bodyKey);

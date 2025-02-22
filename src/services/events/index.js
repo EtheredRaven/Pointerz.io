@@ -14,6 +14,13 @@ module.exports = function (Server) {
       socket,
       "disconnect",
       function () {
+        if (socket.userModel) {
+          const userId = socket.userModel._id.toString();
+          if (Server.userSockets.get(userId) === socket.id) {
+            Server.userSockets.delete(userId);
+          }
+        }
+
         Server.cleanupRateLimit(socket);
         Server.leaveCurrentRoom(socket, false);
         Server.infoLogging("User disconnected", socket);

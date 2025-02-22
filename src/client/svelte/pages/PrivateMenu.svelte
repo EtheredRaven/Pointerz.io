@@ -2,9 +2,10 @@
   // Main menu with the circuit list when logged in
   import { fly, fade, slide } from "svelte/transition";
   import AppLayout from "./AppLayout.svelte";
-  import PointerzButton from "../components/ui/PointerzButton.svelte";
   import OfflineRedirect from "../components/ui/OfflineRedirect.svelte";
   import ParametersButtons from "../components/ui/ParametersButtons.svelte";
+  import SelectionGrid from "../components/ui/SelectionGrid.svelte";
+  import PointerzButton from "../components/ui/PointerzButton.svelte";
   import { Client, userModel } from "../misc/store";
   import { onMount, onDestroy } from "svelte";
 
@@ -67,6 +68,7 @@
     let selectedNFTs = Object.values(groupedNFTs)
       .flat()
       .filter((nft) => nft.nftSelected);
+
     Client.socket.updateNFTSelection(selectedNFTs.map((nft) => nft.nftId));
     Client.phaser.updateVisualiserNFTs(selectedNFTs);
   }
@@ -179,43 +181,35 @@
           in:fade={{ delay: 400, duration: 400 }}
           out:fade={{ duration: 400 }}>
           {#each Object.entries(groupedNFTs) as [category, items]}
-            <div class="category-section">
-              <h2 class="category-title">{category}</h2>
-              <div class="items-grid">
-                {#each items as item}
-                  <div
-                    class="item-card {item.nftSelected ? 'selected' : ''}"
-                    on:click={() => selectNFT(item)}>
-                    <div class="item-info">
-                      <span class="item-name">{item.nftName}</span>
-                      <span
-                        class="rarity-badge"
-                        style="color: var({Client.race.Constants.nftRarityInfo[
-                          item.nftRarity
-                        ].color})">
-                        {Client.race.Constants.nftRarityInfo[item.nftRarity]
-                          .name}
-                      </span>
-                    </div>
-                  </div>
-                {/each}
-                <div
-                  class="item-card"
-                  on:click={() =>
-                    window.open(
-                      "https://kollection.app/collection/" +
-                        Client.pointerzNFTsContractAddress,
-                      "_blank"
-                    )}>
-                  <div class="item-info">
-                    <img
-                      class="buy-nft-icon"
-                      src="assets/images/blockProperties/addComponent.png"
-                      alt="Buy" />
-                  </div>
-                </div>
-              </div>
-            </div>
+            <SelectionGrid
+              items={items.map((nft) => ({
+                nft: nft,
+                nftId: nft.nftId,
+                name: nft.nftName,
+                badge: nft.nftRarity
+                  ? {
+                      text: Client.race.Constants.nftRarityInfo[nft.nftRarity]
+                        .name,
+                      color:
+                        Client.race.Constants.nftRarityInfo[nft.nftRarity]
+                          .color,
+                    }
+                  : null,
+              }))}
+              selectedId={items.find((nft) => nft.nftSelected)?.nftId ||
+                items.find((nft) => nft.isDefault)?.nftId}
+              title={category}
+              titleColor="darkOrange"
+              getItemId={(item) => item.nftId}
+              showAddButton={true}
+              addButtonAction={() =>
+                window.open(
+                  "https://kollection.app/collection/" +
+                    Client.pointerzNFTsContractAddress,
+                  "_blank"
+                )}
+              gridColumns="repeat(auto-fill, minmax(180px, 1fr))"
+              on:select={({ detail }) => selectNFT(detail.item.nft)} />
           {/each}
         </div>
       {/if}
@@ -230,44 +224,6 @@
             width: Client.spaceshipVisualiserWidth,
             height: Client.spaceshipVisualiserHeight,
           }}>
-          {#if !isModifyingSpaceship}
-            <div
-              class="modifySpaceshipButtonContainer"
-              in:slide={{ duration: 300 }}
-              out:slide={{ duration: 1000 }}>
-              <div
-                class="modifySpaceshipButton"
-                on:click={goToSpaceshipModification}>
-                <svg
-                  class="garage-icon"
-                  height="30px"
-                  width="30px"
-                  version="1.1"
-                  id="Capa_1"
-                  xmlns="http://www.w3.org/2000/svg"
-                  xmlns:xlink="http://www.w3.org/1999/xlink"
-                  viewBox="0 0 143.734 143.734"
-                  xml:space="preserve">
-                  <g>
-                    <path
-                      fill="currentColor"
-                      d="M119.743,103.298l-29.84-29.84l24.22-24.22c7.864,1.826,16.457-0.269,22.597-6.408
-          c6.719-6.713,8.562-16.367,5.74-24.81l-11.403,11.397c-4.034,4.046-10.693,3.92-14.893-0.28
-          c-4.183-4.189-4.314-10.848-0.286-14.887l11.397-11.397c-8.425-2.84-18.074-0.985-24.804,5.74
-          c-6.128,6.122-8.216,14.714-6.385,22.591l-24.22,24.214L47.657,31.189c1.826-7.87-0.28-16.463-6.402-22.597
-          c-6.713-6.719-16.361-8.568-24.804-5.746l11.397,11.403c4.04,4.034,3.92,10.699-0.286,14.893
-          c-4.189,4.189-10.836,4.314-14.887,0.286L1.277,18.026c-2.828,8.431-0.979,18.092,5.752,24.81
-          c6.116,6.134,14.708,8.216,22.591,6.396l24.208,24.202l-29.834,29.834c-5.43-0.376-10.979,1.426-15.114,5.585
-          c-7.626,7.614-7.626,19.965,0,27.591c7.602,7.608,19.959,7.608,27.573,0c4.147-4.147,5.943-9.702,5.597-15.132l29.816-29.828
-          l29.84,29.84c-0.37,5.43,1.438,10.985,5.585,15.126c7.608,7.62,19.971,7.62,27.585,0c7.614-7.614,7.614-19.965,0-27.585
-          C130.728,104.719,125.173,102.917,119.743,103.298z M25.311,132.56l-9.923-2.649l-2.643-9.923l7.25-7.262l9.923,2.655l2.655,9.917
-          L25.311,132.56z M128.335,129.929l-9.917,2.643l-7.262-7.262l2.649-9.917l9.923-2.655l7.268,7.262L128.335,129.929z" />
-                  </g>
-                </svg>
-                Modify your Pointerz
-              </div>
-            </div>
-          {/if}
           <div id="spaceshipCanvas"></div>
           <div class="config-buttons">
             <div
@@ -315,6 +271,22 @@
             </div>
           </div>
         </div>
+        {#if !isModifyingSpaceship}
+          <div
+            class="modifySpaceshipButtonContainer"
+            in:slide={{ duration: 300 }}
+            out:slide={{ duration: 1000 }}>
+            <PointerzButton
+              buttonColor="darkOrange"
+              important
+              imagePath="assets/images/menu/garage.png"
+              fullHeight
+              animating
+              on:click={goToSpaceshipModification}>
+              Modify your Pointerz
+            </PointerzButton>
+          </div>
+        {/if}
       </div>
     </div>
   </div>
@@ -367,7 +339,7 @@
     width: 100%;
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 16px;
   }
 
   .canvas-container {
@@ -379,11 +351,8 @@
     display: flex;
     gap: 1rem;
     justify-content: center;
-    margin-bottom: 24px;
-  }
-
-  .modifySpaceshipButtonContainer {
-    padding: 0 24px;
+    margin-bottom: 28px;
+    margin-top: 6px;
   }
 
   .modifySpaceshipButton {
@@ -427,7 +396,6 @@
     max-height: calc(100vh - 405px);
     scrollbar-width: thin;
     scrollbar-color: var(--dark-grey-color) transparent;
-    background: var(--container-blocks-bg);
     border-radius: 8px;
   }
 

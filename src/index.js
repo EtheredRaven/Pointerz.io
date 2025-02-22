@@ -1,5 +1,6 @@
 var Server = {
   isServer: true,
+  Constants: require("./client/js/game/logic/Constants"),
   __dirname: __dirname,
 };
 

@@ -155,15 +155,21 @@
       on:click={tryToConnectKondorAccount}>Connect Koinos</PointerzButton>
     <PointerzModal
       bind:showDialog={openGenerateWalletModal}
-      color="darkGrey"
+      color="darkBlue"
       confirmTitle="Link account"
       confirmFunction={tryToLinkPKAccount}
       canCancel={false}>
       <span slot="title">Generate a Koinos account</span>
       <span slot="description">
         <div class="paragraph">
-          ℹ️ You can generate a Koinos account using the button down below or
-          paste your own private key.
+          {#if privatekeyGenerated}
+            ⚠️ You have generated a new private key for a Koinos account! Make
+            sure to write it somewhere safe! We won't be able to recover it for
+            you since we don't store it on our servers.
+          {:else}
+            ℹ️ You can generate a Koinos account using the button down below or
+            paste your own private key.
+          {/if}
         </div>
         <div class="flex margin-top">
           <div class="flex-auto">
@@ -196,89 +202,88 @@
             </svg>
           </span>
         </div>
-        {#if privatekeyGenerated}
-          <div class="paragraph">
-            ⚠️ You have generated a new private key for a Koinos account! Make
-            sure to write it somewhere safe! We won't be able to recover it for
-            you since we don't store it on our servers.
-          </div>
-          <PointerzInput
-            type="text"
-            bind:value={pastedPrivateKey}
-            placeholder="Paste your generated private key to verify!" />
-        {:else}
-          <div class="paragraph">
-            You can generate a Koinos account using the button down below or
-            paste your own private key.
-          </div>
-          <PointerzButton
-            buttonColor="darkBlue"
-            important
-            on:click={generatePrivateKey}>
-            <svg
-              fill="#dddbdb"
-              viewBox="0 0 24 24"
-              style="width: 28px; height: 28px;vertical-align: middle;margin-right: 8px;"
-              xmlns="http://www.w3.org/2000/svg">
-              <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
-              <g
-                id="SVGRepo_tracerCarrier"
-                stroke-linecap="round"
-                stroke-linejoin="round"></g>
-              <g id="SVGRepo_iconCarrier">
-                <path
-                  id="primary"
-                  d="M4,12A8,8,0,0,1,18.93,8"
-                  style="
+        <div class="generateButtonContainer">
+          {#if privatekeyGenerated}
+            <PointerzInput
+              type="text"
+              bind:value={pastedPrivateKey}
+              placeholder="Paste your generated private key to verify!" />
+          {:else}
+            <PointerzButton
+              buttonColor="darkDarkBlue"
+              outline
+              important
+              on:click={generatePrivateKey}>
+              <svg
+                fill="#dddbdb"
+                viewBox="0 0 24 24"
+                style="width: 28px; height: 28px;vertical-align: middle;margin-right: 8px;"
+                xmlns="http://www.w3.org/2000/svg">
+                <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
+                <g
+                  id="SVGRepo_tracerCarrier"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"></g>
+                <g id="SVGRepo_iconCarrier">
+                  <path
+                    id="primary"
+                    d="M4,12A8,8,0,0,1,18.93,8"
+                    style="
             fill: none;
             stroke: #dddbdb;
             stroke-linecap: round;
             stroke-linejoin: round;
             stroke-width: 2;
           "></path>
-                <path
-                  id="primary-2"
-                  data-name="primary"
-                  d="M20,12A8,8,0,0,1,5.07,16"
-                  style="
+                  <path
+                    id="primary-2"
+                    data-name="primary"
+                    d="M20,12A8,8,0,0,1,5.07,16"
+                    style="
             fill: none;
             stroke: #dddbdb;
             stroke-linecap: round;
             stroke-linejoin: round;
             stroke-width: 2;
           "></path>
-                <polyline
-                  id="primary-3"
-                  data-name="primary"
-                  points="14 8 19 8 19 3"
-                  style="
+                  <polyline
+                    id="primary-3"
+                    data-name="primary"
+                    points="14 8 19 8 19 3"
+                    style="
             fill: none;
             stroke: #dddbdb;
             stroke-linecap: round;
             stroke-linejoin: round;
             stroke-width: 2;
           "></polyline>
-                <polyline
-                  id="primary-4"
-                  data-name="primary"
-                  points="10 16 5 16 5 21"
-                  style="
+                  <polyline
+                    id="primary-4"
+                    data-name="primary"
+                    points="10 16 5 16 5 21"
+                    style="
             fill: none;
             stroke: #dddbdb;
             stroke-linecap: round;
             stroke-linejoin: round;
             stroke-width: 2;
           "></polyline>
-              </g>
-            </svg>Generate a new account
-          </PointerzButton>
-        {/if}
+                </g>
+              </svg>Generate a new account
+            </PointerzButton>
+          {/if}
+        </div>
       </span>
     </PointerzModal>
   {/if}
 </div>
 
 <style>
+  .generateButtonContainer {
+    margin-top: 12px;
+    width: 444px;
+  }
+
   .pointerzButtonCointainer {
     position: absolute;
     top: 12px;
