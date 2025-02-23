@@ -321,4 +321,6 @@ Constants.boostRelativeForce = 2;
 
 Constants.MAX_ALLOWED_RUN_TIME = 30 * 60 * 1000; // 30 minutes
 
+Constants.MAX_CIRCUITS_PER_USER = 50;
+
 module.exports = Constants;

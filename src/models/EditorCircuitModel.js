@@ -31,19 +31,27 @@ module.exports = function (Server) {
     userId,
     newCircuitName
   ) {
-    let newEditorCircuit = new Server.EditorCircuitModel({
-      locked: false,
-      width: Constants.gameWidth,
-      height: Constants.gameHeight,
-      lapsNumber: 1,
-      creationDate: Date.now(),
-      name: newCircuitName,
-      _creatorId: userId,
-      blocks: [],
-      runs: [],
-    });
-
     try {
+      // Check number of existing circuits for this user
+      const circuitCount = await Server.EditorCircuitModel.countDocuments({
+        _creatorId: Server.CircuitModel.toObjectId(userId),
+      });
+
+      if (circuitCount >= Constants.MAX_CIRCUITS_PER_USER) {
+        throw new Error("You have reached the maximum number of circuits.");
+      }
+
+      let newEditorCircuit = new Server.EditorCircuitModel({
+        width: Constants.gameWidth,
+        height: Constants.gameHeight,
+        lapsNumber: 1,
+        creationDate: Date.now(),
+        name: newCircuitName,
+        _creatorId: userId,
+        blocks: [],
+        runs: [],
+      });
+
       await newEditorCircuit.save();
       Server.infoLogging(
         "Create editor circuit",

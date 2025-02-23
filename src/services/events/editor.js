@@ -7,6 +7,10 @@ module.exports = function (Server, socket) {
         circuitName: circuitName,
       });
       Server.assertUserIsLoggedIn(socket);
+      // Check circuitName length
+      if (circuitName.length < 3 || circuitName.length > 20) {
+        throw new Error("Circuit name must be between 3 and 20 characters.");
+      }
       Server.createEditorCircuit(socket, circuitName);
     }
   );

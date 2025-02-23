@@ -1,4 +1,4 @@
-import { writable } from "svelte/store";
+import { writable, get } from "svelte/store";
 
 var Client = window.Client;
 var infoError = writable(false);
@@ -21,6 +21,32 @@ var playerName = writable(storedName ? storedName : "");
 var passedData = writable({});
 
 var editorMenuLastClick = writable({ name: "" });
+
+Client.svelte.updateLoadedVoteCircuits = function (voteCircuits) {
+  if (!voteCircuits) {
+    return;
+  }
+
+  const currentUserModel = get(userModel);
+  if (!currentUserModel) {
+    return;
+  }
+
+  const sortedCircuits = voteCircuits.sort((a, b) => {
+    let upvoteDiff = b.upvotes - a.upvotes;
+    return upvoteDiff == 0 ? b.creationDate - a.creationDate : upvoteDiff;
+  });
+
+  const updatedCircuits = sortedCircuits.map((voteCircuit) => ({
+    ...voteCircuit,
+    isUpvotedByUser:
+      currentUserModel.circuitVotes.findIndex(
+        (vote) => vote.toString() == voteCircuit._id.toString()
+      ) >= 0,
+  }));
+
+  loadedVoteCircuits.set(updatedCircuits);
+};
 
 export { playerNameMaxChar };
 export { playerMail };

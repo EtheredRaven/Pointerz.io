@@ -142,7 +142,6 @@ class Circuit {
 
   getSchema(objectIdType) {
     return {
-      locked: Boolean,
       width: Number,
       height: Number,
       name: String,

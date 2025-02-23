@@ -131564,6 +131564,8 @@ Constants.boostRelativeForce = 2;
 
 Constants.MAX_ALLOWED_RUN_TIME = 30 * 60 * 1000; // 30 minutes
 
+Constants.MAX_CIRCUITS_PER_USER = 50;
+
 module.exports = Constants;
 
 },{}],555:[function(require,module,exports){
@@ -132657,7 +132659,6 @@ class Circuit {
 
   getSchema(objectIdType) {
     return {
-      locked: Boolean,
       width: Number,
       height: Number,
       name: String,
@@ -138149,6 +138150,10 @@ module.exports = function (Client) {
     Client.svelte.updateLoadedEditorCircuits(editorCircuits);
   });
 
+  Client.registerEvent("got_vote_circuits", (voteCircuits) => {
+    Client.svelte.updateLoadedVoteCircuits(voteCircuits);
+  });
+
   Client.socket.createNewEditorCircuit = function (circuitName) {
     Client.socket.emit("create_new_editor_circuit", circuitName);
   };
@@ -138303,8 +138308,17 @@ module.exports = function (Client) {
     Client.socket.emit("upvote_circuit", selectedCircuitId);
   };
 
+  Client.socket.getVoteCircuits = function () {
+    Client.socket.emit("get_vote_circuits");
+  };
+
   Client.registerEvent("circuit_upvoted", function (data) {
     Client.svelte.handleUpvoteResult(data);
+  });
+
+  Client.registerEvent("got_vote_circuits", function (data) {
+    Client.svelte.updateLoadedVoteCircuits(data.voteCircuits);
+    console.log(data);
   });
 };
 

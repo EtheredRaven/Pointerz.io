@@ -195,6 +195,7 @@ module.exports = function (Server, circuitModel) {
         campaignPublicationTime: 1,
         upvotes: 1,
         name: 1,
+        creationDate: 1,
         runs: { $slice: ["$runs", 5] }, // display only the 5 best times
         runsNumber: { $size: "$runs" }, // needed for picking random phantoms
       },
@@ -396,5 +397,11 @@ module.exports = function (Server, circuitModel) {
     } catch (err) {
       Server.errorLogging("Delete record", err);
     }
+  };
+
+  circuitModel.getVoteCircuits = async function (socket) {
+    let userId = socket.userModel._id;
+    let ret = await circuitModel.getCircuits(userId, [], false);
+    return ret.circuits;
   };
 };

@@ -7,6 +7,10 @@ module.exports = function (Server) {
     Server.emitToSocket("got_editor_circuits", socket, [editorCircuits]);
   };
 
+  Server.emitVoteCircuits = function (socket, voteCircuits) {
+    Server.emitToSocket("got_vote_circuits", socket, [voteCircuits]);
+  };
+
   Server.emitErrorEvent = function (socket, error) {
     Server.emitToSocket("error_event", socket, [error]);
   };

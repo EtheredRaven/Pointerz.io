@@ -92,7 +92,10 @@ module.exports = function (Server) {
         logIt && Server.infoLogging(eventName, socket, "received");
         await Promise.resolve().then(() => cb.apply(this, args));
       } catch (err) {
-        logIt && Server.errorLogging(eventName, socket, err);
+        if (logIt) {
+          Server.errorLogging(eventName, socket, err);
+          socket.emit("error_event", err.message);
+        }
       }
     });
   };

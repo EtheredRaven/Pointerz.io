@@ -19,6 +19,10 @@ module.exports = function (Client) {
     Client.svelte.updateLoadedEditorCircuits(editorCircuits);
   });
 
+  Client.registerEvent("got_vote_circuits", (voteCircuits) => {
+    Client.svelte.updateLoadedVoteCircuits(voteCircuits);
+  });
+
   Client.socket.createNewEditorCircuit = function (circuitName) {
     Client.socket.emit("create_new_editor_circuit", circuitName);
   };

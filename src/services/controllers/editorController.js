@@ -23,7 +23,7 @@ module.exports = function (Server) {
           data: { newEditorCircuit: ret.newEditorCircuit },
         })
       : emitReturnEvent({
-          retError: "Error creating a new circuit in the database",
+          retError: "You cannot create a new circuit !",
         });
   };
 
@@ -82,11 +82,11 @@ module.exports = function (Server) {
       let ret = await Server.CircuitModel.createNewCircuit(dbEditorCircuit);
       ret
         ? emitReturnEvent({
-            retError:
-              "Publishing error... You may have already published this circuit ! ",
+            retInfo: "Your circuit was successfully published !",
           })
         : emitReturnEvent({
-            retInfo: "Your circuit was successfully published !",
+            retError:
+              "Publishing error... You may have already published this circuit ! ",
           });
     } else {
       emitReturnEvent({

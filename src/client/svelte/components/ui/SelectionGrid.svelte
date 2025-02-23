@@ -49,14 +49,16 @@
                 {#if showDefaultStats && item.stats}
                   <div class="item-stats">
                     {#each Object.entries(item.stats) as [key, value]}
-                      <span class="stat">
-                        {#if value?.svg}
-                          {@html value.svg}
-                        {:else if value?.icon}
-                          <img src={value.icon} alt={key} class="stat-icon" />
-                        {/if}
-                        {value?.text || value || ""}
-                      </span>
+                      {#if value?.text}
+                        <span class="stat">
+                          {#if value?.svg}
+                            {@html value.svg}
+                          {:else if value?.icon}
+                            <img src={value.icon} alt={key} class="stat-icon" />
+                          {/if}
+                          {value?.text || value || ""}
+                        </span>
+                      {/if}
                     {/each}
                   </div>
                 {/if}
@@ -160,12 +162,6 @@
   .stat-icon {
     width: 16px;
     height: 16px;
-  }
-
-  .item-header {
-    display: flex;
-    justify-content: flex-start;
-    margin-bottom: 0.5rem;
   }
 
   .badge {

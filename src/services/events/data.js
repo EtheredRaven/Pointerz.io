@@ -11,4 +11,10 @@ module.exports = function (Server, socket) {
     let editorCircuits = await Server.getEditorCircuits(socket);
     Server.emitEditorCircuits(socket, editorCircuits);
   });
+
+  Server.registerEvent(socket, "get_vote_circuits", async function () {
+    Server.assertUserIsLoggedIn(socket);
+    let voteCircuits = await Server.getVoteCircuits(socket);
+    Server.emitVoteCircuits(socket, voteCircuits);
+  });
 };

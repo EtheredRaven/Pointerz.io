@@ -256,9 +256,9 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
   .no-selection {
     text-align: center;
     padding: 12px;
-    background: var(--container-blocks-bg);
+    background: var(--over-container-blocks-bg);
     border-radius: 8px;
-    color: var(--light-grey-color);
+    color: var(--almost-white-color);
     font-family: "Nunito";
     font-size: 16px;
   }

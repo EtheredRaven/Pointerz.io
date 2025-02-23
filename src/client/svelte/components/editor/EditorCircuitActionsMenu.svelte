@@ -1,6 +1,5 @@
 <script>
   import { Client, infoError, infoInfo } from "../../misc/store";
-  import { push } from "svelte-spa-router";
   import PointerzConfirm from "../ui/PointerzConfirm.svelte";
   let imagesPath = "../../../assets/images/editorCircuitActions/";
   let circuitSaved = true;

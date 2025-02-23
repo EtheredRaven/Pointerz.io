@@ -13,4 +13,9 @@ module.exports = function (Server) {
 
     return ret;
   };
+
+  Server.getVoteCircuits = async function (socket) {
+    let voteCircuits = await Server.CircuitModel.getVoteCircuits(socket);
+    return voteCircuits;
+  };
 };

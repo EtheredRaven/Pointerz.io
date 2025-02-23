@@ -1,26 +1,37 @@
 <script>
   // Main menu with the circuit list when logged in
   import { fly, fade, slide } from "svelte/transition";
-  import { push } from "svelte-spa-router";
   import {
     Client,
     loadedVoteCircuits,
     passedData,
     infoError,
-    infoInfo,
     userModel,
   } from "../misc/store";
   import OfflineRedirect from "../components/ui/OfflineRedirect.svelte";
   import PointerzButton from "../components/ui/PointerzButton.svelte";
   import AppLayout from "./AppLayout.svelte";
   import Cell from "../components/ui/Cell.svelte";
-  import TextBlock from "../components/ui/TextBlock.svelte";
+  import SelectionGrid from "../components/ui/SelectionGrid.svelte";
   import ParametersButtons from "../components/ui/ParametersButtons.svelte";
 
   let selectedCircuitId;
   $: selectedCircuit = $loadedVoteCircuits.find(
     (circuit) => circuit._id == selectedCircuitId
   );
+
+  function formatCircuitStats(circuit) {
+    return {
+      votes: {
+        icon: "assets/images/circuitVote/upvote.png",
+        text: `${circuit.upvotes} votes`,
+      },
+      date: {
+        icon: "assets/images/menu/calendar.png",
+        text: new Date(circuit.creationDate).toLocaleDateString(),
+      },
+    };
+  }
 
   function selectCircuit(id) {
     Client.phaser.playSound("buttonSelection");
@@ -36,24 +47,6 @@
     Client.socket.emitUpvoteCircuit(selectedCircuitId);
   }
 
-  Client.svelte.updateLoadedVoteCircuits = function (voteCircuits) {
-    if (!voteCircuits) {
-      return;
-    }
-
-    $loadedVoteCircuits = voteCircuits.sort((a, b) => {
-      let upvoteDiff = b.upvotes - a.upvotes;
-      return upvoteDiff == 0 ? b.creationDate - a.creationDate : upvoteDiff;
-    });
-    $loadedVoteCircuits.forEach((voteCircuit) => {
-      let userVotedForThisCircuit =
-        $userModel.circuitVotes.findIndex(
-          (vote) => vote.toString() == voteCircuit._id.toString()
-        ) >= 0;
-      voteCircuit.isUpvotedByUser = userVotedForThisCircuit;
-    });
-  };
-
   Client.svelte.handleUpvoteResult = function (data) {
     if (data.retError) {
       $infoError = data.retError;
@@ -64,107 +57,112 @@
     }
   };
 
-  Client.svelte.updateLoadedVoteCircuits($passedData.voteCircuits);
+  Client.socket.getVoteCircuits();
 </script>
 
 <AppLayout>
   <OfflineRedirect />
   <div
+    class="container"
     in:fly={{ delay: 400, duration: 400 }}
-    out:fade={{ duration: 400 }}
-    id="menuContainer">
+    out:fade={{ duration: 400 }}>
     <ParametersButtons backHref="/privatemenu" />
-    <div class="circuitsContainer">
-      <Cell
-        title="Circuits for vote"
-        color="orange"
-        titleImagePath="assets/images/menu/circuit.png">
-        {#each $loadedVoteCircuits as circuit, i (circuit._id)}
-          <TextBlock
-            clickable
-            color={selectedCircuitId == circuit._id ? "darkOrange" : "grey"}
-            on:click={() => selectCircuit(circuit._id)}
-            slideTransition>
-            {circuit.name}
-            <span class="circuitVotes">
-              {circuit.upvotes} 🡅
-            </span>
-          </TextBlock>
-        {/each}
-      </Cell>
-    </div>
-    <div class="actionsContainer">
-      <Cell>
-        {#if selectedCircuitId}
-          <div transition:slide style="margin-bottom: 16px;">
-            <PointerzButton
-              buttonColor="darkBlue"
-              important
-              elementsPerRow="1"
-              imagePath="assets/images/circuitVote/raceTest.png"
-              animateImage="false"
-              imageHeight="16px"
-              on:click={trySelectedCircuit}>
-              Try circuit
-            </PointerzButton>
-            {#if selectedCircuit.isUpvotedByUser}
+
+    <div class="content-grid">
+      <div class="circuits-column">
+        <SelectionGrid
+          items={$loadedVoteCircuits.map((circuit) => ({
+            ...circuit,
+            stats: formatCircuitStats(circuit),
+          }))}
+          bind:selectedId={selectedCircuitId}
+          title="Circuits for Vote"
+          titleColor="darkOrange"
+          titleIcon="assets/images/menu/circuit.png"
+          getItemId={(item) => item._id}
+          on:select={({ detail }) => selectCircuit(detail.id)} />
+      </div>
+
+      <div class="details-column">
+        <Cell
+          title="Circuit Actions"
+          color="darkBlue"
+          titleImagePath="assets/images/menu/gear.png">
+          {#if selectedCircuitId}
+            <div class="actions-container" transition:slide>
               <PointerzButton
-                buttonColor="darkRed"
+                buttonColor="darkBlue"
                 important
-                elementsPerRow="1"
-                imagePath="assets/images/circuitVote/downvote.png"
-                animateImage="false"
-                imageHeight="16px"
-                on:click={upvoteSelectedCircuit}>
-                Downvote
+                noMargins
+                imagePath="assets/images/circuitVote/raceTest.png"
+                on:click={trySelectedCircuit}>
+                Try Circuit
               </PointerzButton>
-            {:else}
-              <PointerzButton
-                buttonColor="darkGreen"
-                important
-                elementsPerRow="1"
-                imagePath="assets/images/circuitVote/upvote.png"
-                animateImage="false"
-                imageHeight="16px"
-                on:click={upvoteSelectedCircuit}>
-                Upvote
-              </PointerzButton>
-            {/if}
-          </div>
-        {/if}
-      </Cell>
+              {#if selectedCircuit.isUpvotedByUser}
+                <PointerzButton
+                  buttonColor="darkRed"
+                  important
+                  noMargins
+                  imagePath="assets/images/circuitVote/downvote.png"
+                  on:click={upvoteSelectedCircuit}>
+                  Remove Vote
+                </PointerzButton>
+              {:else}
+                <PointerzButton
+                  buttonColor="darkGreen"
+                  important
+                  noMargins
+                  imagePath="assets/images/circuitVote/upvote.png"
+                  on:click={upvoteSelectedCircuit}>
+                  Vote for Circuit
+                </PointerzButton>
+              {/if}
+            </div>
+          {:else}
+            <div class="no-selection">Select a circuit to view actions</div>
+          {/if}
+        </Cell>
+      </div>
     </div>
   </div>
 </AppLayout>
 
 <style>
-  #menuContainer {
+  .container {
+    padding: 2rem;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  .content-grid {
     display: grid;
-    grid-template-columns: 3fr 2fr;
-    grid-template-rows: auto;
-    max-width: 600px;
-    min-width: 230px;
-    width: 70%;
-    margin: auto;
+    grid-template-columns: 1fr 400px;
+    gap: 2rem;
+    margin-top: 2rem;
   }
 
-  .circuitsContainer {
+  .actions-container {
     display: flex;
     flex-direction: column;
-    grid-column-start: 1;
-    grid-column-end: 2;
+    gap: 12px;
+    padding: 12px;
+    background: var(--container-blocks-bg);
+    border-radius: 8px;
   }
 
-  .actionsContainer {
-    display: flex;
-    flex-direction: column;
-    grid-column-start: 2;
-    grid-column-end: 3;
+  .no-selection {
+    text-align: center;
+    padding: 12px;
+    background: var(--over-container-blocks-bg);
+    border-radius: 8px;
+    color: var(--almost-white-color);
+    font-family: "Nunito";
+    font-size: 16px;
   }
 
-  .circuitVotes {
-    float: right;
-    font-family: Nunito;
-    font-size: 18px;
+  @media (max-width: 1200px) {
+    .content-grid {
+      grid-template-columns: 1fr;
+    }
   }
 </style>
