@@ -137,6 +137,17 @@
     --confirm-btn-color: var(--almost-white-color);
   }
 
+  .darkOrange {
+    --actions-bg-color: var(--dark-orange-color);
+    --actions-box-shadow: var(--dark-orange-shadow-color);
+    --confirm-btn-bg: var(--dark-orange-shadow-color);
+    --confirm-btn-bg-hover: var(--dark-orange-shadow-color);
+    --modal-text-color: var(--almost-white-color);
+    --cancel-btn-color: var(--almost-white-color);
+    --cancel-btn-color-hover: var(--almost-white-color);
+    --confirm-btn-color: var(--almost-white-color);
+  }
+
   .message-title {
     font-size: 22px;
     font-weight: 500;

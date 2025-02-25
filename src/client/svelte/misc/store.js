@@ -18,8 +18,6 @@ var playerPassword = writable("");
 let storedName = localStorage.getItem("pointerz_username");
 var playerName = writable(storedName ? storedName : "");
 
-var passedData = writable({});
-
 var editorMenuLastClick = writable({ name: "" });
 
 Client.svelte.updateLoadedVoteCircuits = function (voteCircuits) {
@@ -48,6 +46,68 @@ Client.svelte.updateLoadedVoteCircuits = function (voteCircuits) {
   loadedVoteCircuits.set(updatedCircuits);
 };
 
+Client.svelte.updateLoadedEditorCircuits = function (editorCircuits) {
+  if (!editorCircuits) {
+    return;
+  }
+
+  const sortedCircuits = editorCircuits.sort(
+    (a, b) => b.creationDate - a.creationDate
+  );
+
+  loadedEditorCircuits.set(sortedCircuits);
+};
+
+// Update the display according to the new records, triggered when logged in and when asked for updating records
+Client.svelte.updateLoadedCampaignCircuits = function (circuits, records) {
+  if (!records || !circuits) {
+    return;
+  }
+
+  const currentUserModel = get(userModel);
+  if (!currentUserModel) {
+    return;
+  }
+
+  const updatedCircuits = circuits.map((circuit, i) => {
+    const recordForCircuit =
+      i < records.length && records[i].run ? records[i] : undefined;
+    const circuitCopy = { ...circuit };
+
+    if (recordForCircuit) {
+      // If there is a record by the user
+      circuitCopy.userRecord = recordForCircuit;
+
+      // If there is no record by this user in the five best times, add it to the table
+      if (
+        !circuitCopy.runs.some((run) => run._userId === currentUserModel._id)
+      ) {
+        recordForCircuit.run.formattedRanking = recordForCircuit.ranking + 1;
+        circuitCopy.runs = [...circuitCopy.runs, recordForCircuit.run];
+      }
+    }
+
+    if (!circuitCopy.rankingFormatted) {
+      circuitCopy.rankingFormatted = true;
+      circuitCopy.runs = circuitCopy.runs.map((globalRecord, j) => ({
+        ...globalRecord,
+        highlighted: globalRecord._userId === currentUserModel._id,
+        formattedRanking: `${j + 1}<sup>${Client.getSupFromNumber(
+          j + 1
+        )}</sup>`,
+        formattedRunTime: Client.race.Functions.msToTime(
+          globalRecord.runTime,
+          3
+        ),
+      }));
+    }
+
+    return circuitCopy;
+  });
+
+  loadedCircuits.set(updatedCircuits);
+};
+
 export { playerNameMaxChar };
 export { playerMail };
 export { playerPassword };
@@ -58,7 +118,6 @@ export { loadedCircuits };
 export { userModel };
 export { Client };
 export { loggedIn };
-export { passedData };
 export { loadedEditorCircuits };
 export { editorSelectedBlock };
 export { editorMenuLastClick };
@@ -75,7 +134,6 @@ export default {
   userModel,
   Client,
   loggedIn,
-  passedData,
   loadedEditorCircuits,
   editorSelectedBlock,
   editorMenuLastClick,

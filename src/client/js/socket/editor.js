@@ -23,6 +23,11 @@ module.exports = function (Client) {
     Client.svelte.updateLoadedVoteCircuits(voteCircuits);
   });
 
+  Client.registerEvent("editor_circuit_renamed", (data) => {
+    console.log(data);
+    Client.svelte.updateEditorCircuitRenamed(data);
+  });
+
   Client.socket.createNewEditorCircuit = function (circuitName) {
     Client.socket.emit("create_new_editor_circuit", circuitName);
   };
@@ -44,5 +49,16 @@ module.exports = function (Client) {
 
   Client.socket.publishEditorCircuit = function (circuitObject) {
     Client.socket.emit("publish_editor_circuit", circuitObject._id);
+  };
+
+  Client.socket.renameEditorCircuit = function (
+    selectedCircuitId,
+    newCircuitName
+  ) {
+    Client.socket.emit(
+      "rename_editor_circuit",
+      selectedCircuitId,
+      newCircuitName
+    );
   };
 };

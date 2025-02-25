@@ -94,4 +94,33 @@ module.exports = function (Server) {
       });
     }
   };
+
+  Server.renameEditorCircuit = async function (
+    socket,
+    selectedCircuitId,
+    newCircuitName
+  ) {
+    let emitReturnEvent = Server.initReturnEvent(
+      Server.emitEditorCircuitRenamed,
+      socket,
+      "Rename editor circuit"
+    );
+
+    let ret = await Server.EditorCircuitModel.renameEditorCircuit(
+      socket,
+      selectedCircuitId,
+      newCircuitName
+    );
+    ret
+      ? emitReturnEvent({
+          retInfo: "Circuit successfully renamed !",
+          data: {
+            selectedCircuitId: selectedCircuitId,
+            newCircuitName: newCircuitName,
+          },
+        })
+      : emitReturnEvent({
+          retError: "Error renaming the circuit",
+        });
+  };
 };

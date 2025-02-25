@@ -1,4 +1,13 @@
 module.exports = function (Server, socket) {
+  function assertCircuitNameLength(circuitName) {
+    if (
+      circuitName.length < Server.Constants.MIN_CIRCUIT_NAME_LENGTH ||
+      Server.Constants.MAX_CIRCUIT_NAME_LENGTH < circuitName.length
+    ) {
+      throw new Error("Circuit name must be between 3 and 20 characters.");
+    }
+  }
+
   Server.registerEvent(
     socket,
     "create_new_editor_circuit",
@@ -7,10 +16,7 @@ module.exports = function (Server, socket) {
         circuitName: circuitName,
       });
       Server.assertUserIsLoggedIn(socket);
-      // Check circuitName length
-      if (circuitName.length < 3 || circuitName.length > 20) {
-        throw new Error("Circuit name must be between 3 and 20 characters.");
-      }
+      assertCircuitNameLength(circuitName);
       Server.createEditorCircuit(socket, circuitName);
     }
   );
@@ -34,4 +40,18 @@ module.exports = function (Server, socket) {
     Server.assertUserIsLoggedIn(socket);
     Server.publishEditorCircuit(socket, circuitId);
   });
+
+  Server.registerEvent(
+    socket,
+    "rename_editor_circuit",
+    function (selectedCircuitId, newCircuitName) {
+      Server.assertParametersExist({
+        selectedCircuitId: selectedCircuitId,
+        newCircuitName: newCircuitName,
+      });
+      Server.assertUserIsLoggedIn(socket);
+      assertCircuitNameLength(newCircuitName);
+      Server.renameEditorCircuit(socket, selectedCircuitId, newCircuitName); // async
+    }
+  );
 };

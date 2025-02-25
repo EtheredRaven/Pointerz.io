@@ -1,7 +1,7 @@
 module.exports = function (Client) {
   // Update the menu display
   Client.registerEvent("circuit_records", (circuits, records) => {
-    Client.svelte.updateRecordsDisplay(circuits, records);
+    Client.svelte.updateLoadedCampaignCircuits(circuits, records);
   });
 
   Client.registerEvent("error_event", (error) => {

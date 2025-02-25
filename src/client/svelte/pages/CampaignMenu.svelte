@@ -1,14 +1,7 @@
 <script>
   // Main menu with the circuit list when logged in
   import { slide, fly, fade } from "svelte/transition";
-  import {
-    Client,
-    loadedCircuits,
-    userModel,
-    passedData,
-    loggedIn,
-  } from "../misc/store";
-  import { css } from "../misc/css";
+  import { Client, loadedCircuits, loggedIn } from "../misc/store";
   import AppLayout from "./AppLayout.svelte";
   import PointerzButton from "../components/ui/PointerzButton.svelte";
   import Cell from "../components/ui/Cell.svelte";
@@ -96,55 +89,6 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     // Ask to the server the race data
     Client.socket.emitJoinNewRoom($loadedCircuits[selectedCircuitIndex]._id);
   }
-
-  // Update the display according to the new records, triggered when logged in and when asked for updating records
-  Client.svelte.updateRecordsDisplay = function (circuits, records) {
-    if (!records || !circuits) {
-      return;
-    }
-    $loadedCircuits = [...circuits];
-    // Add the records to the circuits
-    $loadedCircuits.forEach((circuit, i) => {
-      let recordForCircuit =
-        i < records.length && records[i].run ? records[i] : undefined;
-      if (recordForCircuit) {
-        // If there is a record by the user
-        circuit.userRecord = recordForCircuit; // Add the user record to the circuit object for easier understanding
-        if (
-          !circuit.runs.filter((run) => run._userId == $userModel._id).length
-        ) {
-          // If there is no record by this user in the five best times, add it to the table
-          recordForCircuit.run.formattedRanking = recordForCircuit.ranking + 1;
-          circuit.runs.push(recordForCircuit.run);
-        }
-      }
-
-      if (circuit.rankingFormatted) return;
-      circuit.rankingFormatted = true;
-      circuit.runs.forEach((globalRecord, j) => {
-        if (globalRecord._userId == $userModel._id) {
-          // Highlight the user record in the list
-          globalRecord.highlighted = true;
-        }
-        if (!globalRecord.formattedRanking) {
-          // Add the ranking
-          globalRecord.formattedRanking = j + 1;
-        }
-        // Format the whole for displaying
-        globalRecord.formattedRanking =
-          globalRecord.formattedRanking +
-          "<sup>" +
-          Client.getSupFromNumber(globalRecord.formattedRanking) +
-          "</sup>";
-        globalRecord.formattedRunTime = Client.race.Functions.msToTime(
-          globalRecord.runTime,
-          3
-        );
-      });
-    });
-  };
-
-  Client.svelte.updateRecordsDisplay($passedData.circuits, $passedData.records); // Update the records according to tge data sent during the logging in
 </script>
 
 <AppLayout>
@@ -161,7 +105,7 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
           items={$loadedCircuits.map((circuit, i) => ({
             ...circuit,
             number: i + 1,
-            name: `Circuit ${i + 1}`,
+            name: circuit.name || `Circuit ${i + 1}`,
             stats: formatCircuitStats(circuit),
             id: i,
           }))}

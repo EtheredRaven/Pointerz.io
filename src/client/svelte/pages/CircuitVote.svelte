@@ -1,13 +1,7 @@
 <script>
   // Main menu with the circuit list when logged in
   import { fly, fade, slide } from "svelte/transition";
-  import {
-    Client,
-    loadedVoteCircuits,
-    passedData,
-    infoError,
-    userModel,
-  } from "../misc/store";
+  import { Client, loadedVoteCircuits, infoError } from "../misc/store";
   import OfflineRedirect from "../components/ui/OfflineRedirect.svelte";
   import PointerzButton from "../components/ui/PointerzButton.svelte";
   import AppLayout from "./AppLayout.svelte";

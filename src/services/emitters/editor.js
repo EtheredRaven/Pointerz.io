@@ -14,4 +14,8 @@ module.exports = function (Server) {
   Server.emitEditorCircuitDeleted = function (socket, data) {
     Server.emitToSocket("editor_circuit_deleted", socket, [data]);
   };
+
+  Server.emitEditorCircuitRenamed = function (socket, data) {
+    Server.emitToSocket("editor_circuit_renamed", socket, [data]);
+  };
 };

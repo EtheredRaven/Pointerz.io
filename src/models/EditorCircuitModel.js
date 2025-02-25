@@ -122,4 +122,33 @@ module.exports = function (Server) {
       Server.errorLogging("Delete editor circuit", err);
     }
   };
+
+  Server.EditorCircuitModel.renameEditorCircuit = async function (
+    socket,
+    selectedCircuitId,
+    newCircuitName
+  ) {
+    try {
+      let ret = await Server.EditorCircuitModel.findOneAndUpdate(
+        {
+          _id: Server.CircuitModel.toObjectId(selectedCircuitId),
+          _creatorId: Server.CircuitModel.toObjectId(socket.userModel._id),
+        },
+        { name: newCircuitName }
+      );
+      if (!ret) {
+        throw new Error("Circuit not found");
+      }
+      Server.infoLogging(
+        "Rename editor circuit",
+        "success",
+        socket,
+        selectedCircuitId,
+        newCircuitName
+      );
+      return ret;
+    } catch (err) {
+      Server.errorLogging("Rename editor circuit", err);
+    }
+  };
 };

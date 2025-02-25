@@ -131563,8 +131563,9 @@ Constants.boostDuration = 10;
 Constants.boostRelativeForce = 2;
 
 Constants.MAX_ALLOWED_RUN_TIME = 30 * 60 * 1000; // 30 minutes
-
 Constants.MAX_CIRCUITS_PER_USER = 50;
+Constants.MIN_CIRCUIT_NAME_LENGTH = 3;
+Constants.MAX_CIRCUIT_NAME_LENGTH = 20;
 
 module.exports = Constants;
 
@@ -138154,6 +138155,11 @@ module.exports = function (Client) {
     Client.svelte.updateLoadedVoteCircuits(voteCircuits);
   });
 
+  Client.registerEvent("editor_circuit_renamed", (data) => {
+    console.log(data);
+    Client.svelte.updateEditorCircuitRenamed(data);
+  });
+
   Client.socket.createNewEditorCircuit = function (circuitName) {
     Client.socket.emit("create_new_editor_circuit", circuitName);
   };
@@ -138175,6 +138181,17 @@ module.exports = function (Client) {
 
   Client.socket.publishEditorCircuit = function (circuitObject) {
     Client.socket.emit("publish_editor_circuit", circuitObject._id);
+  };
+
+  Client.socket.renameEditorCircuit = function (
+    selectedCircuitId,
+    newCircuitName
+  ) {
+    Client.socket.emit(
+      "rename_editor_circuit",
+      selectedCircuitId,
+      newCircuitName
+    );
   };
 };
 
@@ -138204,7 +138221,7 @@ module.exports = function (Client) {
 module.exports = function (Client) {
   // Update the menu display
   Client.registerEvent("circuit_records", (circuits, records) => {
-    Client.svelte.updateRecordsDisplay(circuits, records);
+    Client.svelte.updateLoadedCampaignCircuits(circuits, records);
   });
 
   Client.registerEvent("error_event", (error) => {

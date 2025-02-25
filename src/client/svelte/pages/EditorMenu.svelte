@@ -6,7 +6,6 @@
     loadedEditorCircuits,
     loadedCircuits,
     loadedVoteCircuits,
-    passedData,
     infoError,
     infoInfo,
   } from "../misc/store";
@@ -17,8 +16,13 @@
   import SelectionGrid from "../components/ui/SelectionGrid.svelte";
   import ParametersButtons from "../components/ui/ParametersButtons.svelte";
   import OfflineRedirect from "../components/ui/OfflineRedirect.svelte";
+  import PointerzModal from "../components/ui/PointerzModal.svelte";
+  import PointerzInput from "../components/ui/PointerzInput.svelte";
 
   const defaultNewCircuitName = "New circuit";
+  let openRenameModal = false;
+  let newCircuitName = "";
+
   let selectedCircuitId;
   $: selectedCircuit = $loadedEditorCircuits.find(
     (circuit) => circuit._id == selectedCircuitId
@@ -46,7 +50,7 @@
       state: {
         icon: "assets/images/editorCircuitActions/saved.png",
         text: isInCampaign
-          ? "In campaing"
+          ? "In campaign"
           : isInVote
             ? "In vote"
             : circuit.runs.length > 0
@@ -54,6 +58,22 @@
               : null,
       },
     };
+  }
+
+  function renameSelectedCircuit() {
+    if (!selectedCircuit) {
+      $infoError = "You did not select a circuit";
+      return false;
+    }
+
+    if (!newCircuitName || newCircuitName.trim().length === 0) {
+      $infoError = "Please enter a valid name";
+      return false;
+    }
+
+    Client.socket.renameEditorCircuit(selectedCircuitId, newCircuitName);
+    openRenameModal = false;
+    return true;
   }
 
   function selectCircuit(id) {
@@ -94,6 +114,19 @@
     Client.editor.initialize(selectedCircuit);
   }
 
+  Client.svelte.updateEditorCircuitRenamed = function ({ retError, retInfo }) {
+    if (retError) {
+      $infoError = retError;
+    } else {
+      $infoInfo = retInfo;
+      let tempLoadedEditorCircuits = [...$loadedEditorCircuits];
+      tempLoadedEditorCircuits.find(
+        (circuit) => circuit._id == selectedCircuitId
+      ).name = newCircuitName;
+      Client.svelte.updateLoadedEditorCircuits(tempLoadedEditorCircuits);
+    }
+  };
+
   Client.svelte.updateEditorCircuitCreated = function ({
     retError,
     retInfo,
@@ -130,18 +163,6 @@
       Client.svelte.updateLoadedEditorCircuits(tempLoadedEditorCircuits);
     }
   };
-
-  Client.svelte.updateLoadedEditorCircuits = function (editorCircuits) {
-    if (!editorCircuits) {
-      return;
-    }
-
-    $loadedEditorCircuits = editorCircuits.sort(
-      (a, b) => b.creationDate - a.creationDate
-    );
-  };
-
-  Client.svelte.updateLoadedEditorCircuits($passedData.editorCircuits);
 </script>
 
 <AppLayout>
@@ -180,6 +201,18 @@
                 Edit
               </PointerzButton>
 
+              <PointerzButton
+                buttonColor="darkOrange"
+                important
+                noMargins
+                imagePath="assets/images/menu/rename.png"
+                on:click={() => {
+                  newCircuitName = selectedCircuit.name;
+                  openRenameModal = true;
+                }}>
+                Rename
+              </PointerzButton>
+
               <PointerzConfirm
                 let:confirm={confirmThis}
                 confirmTitle="Delete"
@@ -213,6 +246,25 @@
       </div>
     </div>
   </div>
+  <PointerzModal
+    bind:showDialog={openRenameModal}
+    color="darkOrange"
+    confirmTitle="Rename"
+    confirmFunction={renameSelectedCircuit}
+    canCancel={true}>
+    <span slot="title">Rename Circuit</span>
+    <span slot="description">
+      <div class="paragraph">Enter a new name for your circuit</div>
+      <div class="flex margin-top">
+        <div class="flex-auto">
+          <PointerzInput
+            type="text"
+            bind:value={newCircuitName}
+            placeholder="New circuit name" />
+        </div>
+      </div>
+    </span>
+  </PointerzModal>
 </AppLayout>
 
 <style>
@@ -237,6 +289,23 @@
     background: var(--container-blocks-bg);
     border-radius: 8px;
     margin-bottom: 8px;
+  }
+
+  .paragraph {
+    margin-bottom: 20px;
+    margin-top: 16px;
+  }
+
+  .flex {
+    display: flex;
+  }
+
+  .flex-auto {
+    flex: auto;
+  }
+
+  .margin-top {
+    margin-top: 12px;
   }
 
   @media (max-width: 1200px) {

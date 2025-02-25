@@ -6,7 +6,6 @@
     Client,
     userModel,
     loggedIn,
-    passedData,
     playerName,
     playerMail,
     playerPassword,
@@ -64,12 +63,9 @@
     if (!retError) {
       $loggedIn = !anonymous; // This is only a local variable as an indicator to know if the user is anonymous or not, the server handles the rest
       $userModel = user;
-      $passedData = {
-        circuits: circuits,
-        records: records,
-        editorCircuits: editorCircuits,
-        voteCircuits: voteCircuits,
-      };
+      Client.svelte.updateLoadedCampaignCircuits(circuits, records);
+      Client.svelte.updateLoadedVoteCircuits(voteCircuits);
+      Client.svelte.updateLoadedEditorCircuits(editorCircuits);
       $loggedIn
         ? Client.pushRoute("/privatemenu")
         : Client.pushRoute("/campaignmenu");

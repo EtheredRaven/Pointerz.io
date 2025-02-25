@@ -2646,8 +2646,6 @@ var app = (function () {
     let storedName = localStorage.getItem("pointerz_username");
     var playerName = writable(storedName ? storedName : "");
 
-    var passedData = writable({});
-
     var editorMenuLastClick = writable({ name: "" });
 
     Client$1.svelte.updateLoadedVoteCircuits = function (voteCircuits) {
@@ -2674,6 +2672,68 @@ var app = (function () {
       }));
 
       loadedVoteCircuits.set(updatedCircuits);
+    };
+
+    Client$1.svelte.updateLoadedEditorCircuits = function (editorCircuits) {
+      if (!editorCircuits) {
+        return;
+      }
+
+      const sortedCircuits = editorCircuits.sort(
+        (a, b) => b.creationDate - a.creationDate
+      );
+
+      loadedEditorCircuits.set(sortedCircuits);
+    };
+
+    // Update the display according to the new records, triggered when logged in and when asked for updating records
+    Client$1.svelte.updateLoadedCampaignCircuits = function (circuits, records) {
+      if (!records || !circuits) {
+        return;
+      }
+
+      const currentUserModel = get_store_value(userModel);
+      if (!currentUserModel) {
+        return;
+      }
+
+      const updatedCircuits = circuits.map((circuit, i) => {
+        const recordForCircuit =
+          i < records.length && records[i].run ? records[i] : undefined;
+        const circuitCopy = { ...circuit };
+
+        if (recordForCircuit) {
+          // If there is a record by the user
+          circuitCopy.userRecord = recordForCircuit;
+
+          // If there is no record by this user in the five best times, add it to the table
+          if (
+            !circuitCopy.runs.some((run) => run._userId === currentUserModel._id)
+          ) {
+            recordForCircuit.run.formattedRanking = recordForCircuit.ranking + 1;
+            circuitCopy.runs = [...circuitCopy.runs, recordForCircuit.run];
+          }
+        }
+
+        if (!circuitCopy.rankingFormatted) {
+          circuitCopy.rankingFormatted = true;
+          circuitCopy.runs = circuitCopy.runs.map((globalRecord, j) => ({
+            ...globalRecord,
+            highlighted: globalRecord._userId === currentUserModel._id,
+            formattedRanking: `${j + 1}<sup>${Client$1.getSupFromNumber(
+          j + 1
+        )}</sup>`,
+            formattedRunTime: Client$1.race.Functions.msToTime(
+              globalRecord.runTime,
+              3
+            ),
+          }));
+        }
+
+        return circuitCopy;
+      });
+
+      loadedCircuits.set(updatedCircuits);
     };
 
     const css = {
@@ -4758,19 +4818,19 @@ var app = (function () {
     			t2 = space();
     			span2 = element("span");
     			span2.textContent = "✕";
-    			attr_dev(span0, "class", "message-title svelte-b1fpt7");
+    			attr_dev(span0, "class", "message-title svelte-b1kjb");
     			add_location(span0, file$F, 45, 10, 1104);
-    			attr_dev(span1, "class", "message-description svelte-b1fpt7");
+    			attr_dev(span1, "class", "message-description svelte-b1kjb");
     			add_location(span1, file$F, 49, 10, 1264);
     			attr_dev(div0, "class", "message-section");
     			add_location(div0, file$F, 44, 8, 1063);
-    			attr_dev(span2, "class", "close svelte-b1fpt7");
+    			attr_dev(span2, "class", "close svelte-b1kjb");
     			add_location(span2, file$F, 77, 8, 2131);
     			set_style(div1, "position", "relative");
     			add_location(div1, file$F, 43, 6, 1021);
-    			attr_dev(div2, "class", div2_class_value = "" + (null_to_empty("confirm-dialog " + /*color*/ ctx[3]) + " svelte-b1fpt7"));
+    			attr_dev(div2, "class", div2_class_value = "" + (null_to_empty("confirm-dialog " + /*color*/ ctx[3]) + " svelte-b1kjb"));
     			add_location(div2, file$F, 32, 4, 809);
-    			attr_dev(div3, "class", "overlay svelte-b1fpt7");
+    			attr_dev(div3, "class", "overlay svelte-b1kjb");
     			add_location(div3, file$F, 28, 2, 698);
     		},
     		m: function mount(target, anchor) {
@@ -4856,7 +4916,7 @@ var app = (function () {
     				check_outros();
     			}
 
-    			if (!current || dirty & /*color*/ 8 && div2_class_value !== (div2_class_value = "" + (null_to_empty("confirm-dialog " + /*color*/ ctx[3]) + " svelte-b1fpt7"))) {
+    			if (!current || dirty & /*color*/ 8 && div2_class_value !== (div2_class_value = "" + (null_to_empty("confirm-dialog " + /*color*/ ctx[3]) + " svelte-b1kjb"))) {
     				attr_dev(div2, "class", div2_class_value);
     			}
     		},
@@ -4956,7 +5016,7 @@ var app = (function () {
     			if (if_block0) if_block0.c();
     			t = space();
     			if (if_block1) if_block1.c();
-    			attr_dev(div, "class", "actions svelte-b1fpt7");
+    			attr_dev(div, "class", "actions svelte-b1kjb");
     			add_location(div, file$F, 54, 10, 1432);
     		},
     		m: function mount(target, anchor) {
@@ -5056,7 +5116,7 @@ var app = (function () {
     		c: function create() {
     			button = element("button");
     			if (cancel_slot_or_fallback) cancel_slot_or_fallback.c();
-    			attr_dev(button, "class", "modal-button cancel-button svelte-b1fpt7");
+    			attr_dev(button, "class", "modal-button cancel-button svelte-b1kjb");
     			attr_dev(button, "important", "");
     			add_location(button, file$F, 56, 14, 1498);
     		},
@@ -5166,7 +5226,7 @@ var app = (function () {
     		c: function create() {
     			button = element("button");
     			if (confirm_slot_or_fallback) confirm_slot_or_fallback.c();
-    			attr_dev(button, "class", "modal-button svelte-b1fpt7");
+    			attr_dev(button, "class", "modal-button svelte-b1kjb");
     			attr_dev(button, "important", "");
     			add_location(button, file$F, 66, 14, 1825);
     		},
@@ -8877,8 +8937,8 @@ var app = (function () {
     		confirmFunction: /*tryToLinkPKAccount*/ ctx[7],
     		canCancel: false,
     		$$slots: {
-    			description: [create_description_slot_1],
-    			title: [create_title_slot_1$1]
+    			description: [create_description_slot_1$1],
+    			title: [create_title_slot_1$2]
     		},
     		$$scope: { ctx }
     	};
@@ -9108,7 +9168,7 @@ var app = (function () {
     }
 
     // (162:6) 
-    function create_title_slot_1$1(ctx) {
+    function create_title_slot_1$2(ctx) {
     	let span;
 
     	const block = {
@@ -9129,7 +9189,7 @@ var app = (function () {
 
     	dispatch_dev("SvelteRegisterBlock", {
     		block,
-    		id: create_title_slot_1$1.name,
+    		id: create_title_slot_1$2.name,
     		type: "slot",
     		source: "(162:6) ",
     		ctx
@@ -9428,7 +9488,7 @@ var app = (function () {
     }
 
     // (163:6) 
-    function create_description_slot_1(ctx) {
+    function create_description_slot_1$1(ctx) {
     	let span1;
     	let div0;
     	let t0;
@@ -9626,7 +9686,7 @@ var app = (function () {
 
     	dispatch_dev("SvelteRegisterBlock", {
     		block,
-    		id: create_description_slot_1.name,
+    		id: create_description_slot_1$1.name,
     		type: "slot",
     		source: "(163:6) ",
     		ctx
@@ -12882,7 +12942,7 @@ var app = (function () {
     /* src\client\svelte\pages\CampaignMenu.svelte generated by Svelte v3.59.2 */
     const file$v = "src\\client\\svelte\\pages\\CampaignMenu.svelte";
 
-    // (226:10) {:else}
+    // (170:10) {:else}
     function create_else_block$7(ctx) {
     	let div;
 
@@ -12891,7 +12951,7 @@ var app = (function () {
     			div = element("div");
     			div.textContent = "Select a circuit to view details";
     			attr_dev(div, "class", "no-selection svelte-m21f2i");
-    			add_location(div, file$v, 226, 12, 10914);
+    			add_location(div, file$v, 170, 12, 8834);
     		},
     		m: function mount(target, anchor) {
     			insert_dev(target, div, anchor);
@@ -12908,14 +12968,14 @@ var app = (function () {
     		block,
     		id: create_else_block$7.name,
     		type: "else",
-    		source: "(226:10) {:else}",
+    		source: "(170:10) {:else}",
     		ctx
     	});
 
     	return block;
     }
 
-    // (181:10) {#if selectedCircuitIndex >= 0}
+    // (125:10) {#if selectedCircuitIndex >= 0}
     function create_if_block$i(ctx) {
     	let div0;
     	let pointerztable;
@@ -12967,9 +13027,9 @@ var app = (function () {
     			div1 = element("div");
     			create_component(pointerzbutton.$$.fragment);
     			attr_dev(div0, "class", "leaderboard-container svelte-m21f2i");
-    			add_location(div0, file$v, 181, 12, 6634);
+    			add_location(div0, file$v, 125, 12, 4554);
     			attr_dev(div1, "class", "buttonContainer svelte-m21f2i");
-    			add_location(div1, file$v, 187, 12, 6972);
+    			add_location(div1, file$v, 131, 12, 4892);
     		},
     		m: function mount(target, anchor) {
     			insert_dev(target, div0, anchor);
@@ -12991,7 +13051,7 @@ var app = (function () {
     			pointerztable.$set(pointerztable_changes);
     			const pointerzbutton_changes = {};
 
-    			if (dirty & /*$$scope*/ 16384) {
+    			if (dirty & /*$$scope*/ 2048) {
     				pointerzbutton_changes.$$scope = { dirty, ctx };
     			}
 
@@ -13031,14 +13091,14 @@ var app = (function () {
     		block,
     		id: create_if_block$i.name,
     		type: "if",
-    		source: "(181:10) {#if selectedCircuitIndex >= 0}",
+    		source: "(125:10) {#if selectedCircuitIndex >= 0}",
     		ctx
     	});
 
     	return block;
     }
 
-    // (189:14) <PointerzButton                  buttonColor="darkBlue"                  important                  elementsPerRow="1"                  on:click={joinRace}>
+    // (133:14) <PointerzButton                  buttonColor="darkBlue"                  important                  elementsPerRow="1"                  on:click={joinRace}>
     function create_default_slot_2$5(ctx) {
     	let t;
     	let span;
@@ -13060,30 +13120,30 @@ var app = (function () {
     			attr_dev(path0, "class", "one svelte-m21f2i");
     			attr_dev(path0, "d", "M40.1543933,3.89485454 L43.9763149,0.139296592 C44.1708311,-0.0518420739 44.4826329,-0.0518571125 44.6771675,0.139262789 L65.6916134,20.7848311 C66.0855801,21.1718824 66.0911863,21.8050225 65.704135,22.1989893 C65.7000188,22.2031791 65.6958657,22.2073326 65.6916762,22.2114492 L44.677098,42.8607841 C44.4825957,43.0519059 44.1708242,43.0519358 43.9762853,42.8608513 L40.1545186,39.1069479 C39.9575152,38.9134427 39.9546793,38.5968729 40.1481845,38.3998695 C40.1502893,38.3977268 40.1524132,38.395603 40.1545562,38.3934985 L56.9937789,21.8567812 C57.1908028,21.6632968 57.193672,21.3467273 57.0001876,21.1497035 C56.9980647,21.1475418 56.9959223,21.1453995 56.9937605,21.1432767 L40.1545208,4.60825197 C39.9574869,4.41477773 39.9546013,4.09820839 40.1480756,3.90117456 C40.1501626,3.89904911 40.1522686,3.89694235 40.1543933,3.89485454 Z");
     			attr_dev(path0, "fill", "var(--almost-white-color)");
-    			add_location(path0, file$v, 208, 22, 7771);
+    			add_location(path0, file$v, 152, 22, 5691);
     			attr_dev(path1, "class", "two svelte-m21f2i");
     			attr_dev(path1, "d", "M20.1543933,3.89485454 L23.9763149,0.139296592 C24.1708311,-0.0518420739 24.4826329,-0.0518571125 24.6771675,0.139262789 L45.6916134,20.7848311 C46.0855801,21.1718824 46.0911863,21.8050225 45.704135,22.1989893 C45.7000188,22.2031791 45.6958657,22.2073326 45.6916762,22.2114492 L24.677098,42.8607841 C24.4825957,43.0519059 24.1708242,43.0519358 23.9762853,42.8608513 L20.1545186,39.1069479 C19.9575152,38.9134427 19.9546793,38.5968729 20.1481845,38.3998695 C20.1502893,38.3977268 20.1524132,38.395603 20.1545562,38.3934985 L36.9937789,21.8567812 C37.1908028,21.6632968 37.193672,21.3467273 37.0001876,21.1497035 C36.9980647,21.1475418 36.9959223,21.1453995 36.9937605,21.1432767 L20.1545208,4.60825197 C19.9574869,4.41477773 19.9546013,4.09820839 20.1480756,3.90117456 C20.1501626,3.89904911 20.1522686,3.89694235 20.1543933,3.89485454 Z");
     			attr_dev(path1, "fill", "var(--almost-white-color)");
-    			add_location(path1, file$v, 212, 22, 8764);
+    			add_location(path1, file$v, 156, 22, 6684);
     			attr_dev(path2, "class", "three svelte-m21f2i");
     			attr_dev(path2, "d", "M0.154393339,3.89485454 L3.97631488,0.139296592 C4.17083111,-0.0518420739 4.48263286,-0.0518571125 4.67716753,0.139262789 L25.6916134,20.7848311 C26.0855801,21.1718824 26.0911863,21.8050225 25.704135,22.1989893 C25.7000188,22.2031791 25.6958657,22.2073326 25.6916762,22.2114492 L4.67709797,42.8607841 C4.48259567,43.0519059 4.17082418,43.0519358 3.97628526,42.8608513 L0.154518591,39.1069479 C-0.0424848215,38.9134427 -0.0453206733,38.5968729 0.148184538,38.3998695 C0.150289256,38.3977268 0.152413239,38.395603 0.154556228,38.3934985 L16.9937789,21.8567812 C17.1908028,21.6632968 17.193672,21.3467273 17.0001876,21.1497035 C16.9980647,21.1475418 16.9959223,21.1453995 16.9937605,21.1432767 L0.15452076,4.60825197 C-0.0425130651,4.41477773 -0.0453986756,4.09820839 0.148075568,3.90117456 C0.150162624,3.89904911 0.152268631,3.89694235 0.154393339,3.89485454 Z");
     			attr_dev(path2, "fill", "var(--almost-white-color)");
-    			add_location(path2, file$v, 216, 22, 9757);
+    			add_location(path2, file$v, 160, 22, 7677);
     			attr_dev(g, "id", "arrow");
     			attr_dev(g, "stroke", "none");
     			attr_dev(g, "stroke-width", "1");
     			attr_dev(g, "fill", "none");
     			attr_dev(g, "fill-rule", "evenodd");
-    			add_location(g, file$v, 202, 20, 7555);
+    			add_location(g, file$v, 146, 20, 5475);
     			attr_dev(svg, "width", "32px");
     			attr_dev(svg, "height", "43px");
     			attr_dev(svg, "viewBox", "0 0 66 43");
     			attr_dev(svg, "version", "1.1");
     			attr_dev(svg, "xmlns", "http://www.w3.org/2000/svg");
     			attr_dev(svg, "xmlns:xlink", "http://www.w3.org/1999/xlink");
-    			add_location(svg, file$v, 195, 18, 7263);
+    			add_location(svg, file$v, 139, 18, 5183);
     			attr_dev(span, "class", "arrowContainer svelte-m21f2i");
-    			add_location(span, file$v, 194, 16, 7214);
+    			add_location(span, file$v, 138, 16, 5134);
     		},
     		m: function mount(target, anchor) {
     			insert_dev(target, t, anchor);
@@ -13105,14 +13165,14 @@ var app = (function () {
     		block,
     		id: create_default_slot_2$5.name,
     		type: "slot",
-    		source: "(189:14) <PointerzButton                  buttonColor=\\\"darkBlue\\\"                  important                  elementsPerRow=\\\"1\\\"                  on:click={joinRace}>",
+    		source: "(133:14) <PointerzButton                  buttonColor=\\\"darkBlue\\\"                  important                  elementsPerRow=\\\"1\\\"                  on:click={joinRace}>",
     		ctx
     	});
 
     	return block;
     }
 
-    // (177:8) <Cell            title="Leaderboard"            color="darkBlue"            titleImagePath="assets/images/menu/trophy.png">
+    // (121:8) <Cell            title="Leaderboard"            color="darkBlue"            titleImagePath="assets/images/menu/trophy.png">
     function create_default_slot_1$6(ctx) {
     	let current_block_type_index;
     	let if_block;
@@ -13185,14 +13245,14 @@ var app = (function () {
     		block,
     		id: create_default_slot_1$6.name,
     		type: "slot",
-    		source: "(177:8) <Cell            title=\\\"Leaderboard\\\"            color=\\\"darkBlue\\\"            titleImagePath=\\\"assets/images/menu/trophy.png\\\">",
+    		source: "(121:8) <Cell            title=\\\"Leaderboard\\\"            color=\\\"darkBlue\\\"            titleImagePath=\\\"assets/images/menu/trophy.png\\\">",
     		ctx
     	});
 
     	return block;
     }
 
-    // (150:0) <AppLayout>
+    // (94:0) <AppLayout>
     function create_default_slot$a(ctx) {
     	let offlineredirect;
     	let t0;
@@ -13268,13 +13328,13 @@ var app = (function () {
     			div1 = element("div");
     			create_component(cell.$$.fragment);
     			attr_dev(div0, "class", "circuits-column");
-    			add_location(div0, file$v, 158, 6, 5800);
+    			add_location(div0, file$v, 102, 6, 3704);
     			attr_dev(div1, "class", "details-column");
-    			add_location(div1, file$v, 175, 6, 6416);
+    			add_location(div1, file$v, 119, 6, 4336);
     			attr_dev(div2, "class", "content-grid svelte-m21f2i");
-    			add_location(div2, file$v, 157, 4, 5766);
+    			add_location(div2, file$v, 101, 4, 3670);
     			attr_dev(div3, "class", "container svelte-m21f2i");
-    			add_location(div3, file$v, 151, 2, 5574);
+    			add_location(div3, file$v, 95, 2, 3478);
     		},
     		m: function mount(target, anchor) {
     			mount_component(offlineredirect, target, anchor);
@@ -13306,7 +13366,7 @@ var app = (function () {
     			selectiongrid.$set(selectiongrid_changes);
     			const cell_changes = {};
 
-    			if (dirty & /*$$scope, $loadedCircuits, selectedCircuitIndex*/ 16387) {
+    			if (dirty & /*$$scope, $loadedCircuits, selectedCircuitIndex*/ 2051) {
     				cell_changes.$$scope = { dirty, ctx };
     			}
 
@@ -13352,7 +13412,7 @@ var app = (function () {
     		block,
     		id: create_default_slot$a.name,
     		type: "slot",
-    		source: "(150:0) <AppLayout>",
+    		source: "(94:0) <AppLayout>",
     		ctx
     	});
 
@@ -13385,7 +13445,7 @@ var app = (function () {
     		p: function update(ctx, [dirty]) {
     			const applayout_changes = {};
 
-    			if (dirty & /*$$scope, $loadedCircuits, selectedCircuitIndex, $loggedIn*/ 16391) {
+    			if (dirty & /*$$scope, $loadedCircuits, selectedCircuitIndex, $loggedIn*/ 2055) {
     				applayout_changes.$$scope = { dirty, ctx };
     			}
 
@@ -13419,14 +13479,8 @@ var app = (function () {
     const func_1$2 = item => item.number - 1;
 
     function instance$w($$self, $$props, $$invalidate) {
-    	let $passedData;
-    	let $userModel;
     	let $loadedCircuits;
     	let $loggedIn;
-    	validate_store(passedData, 'passedData');
-    	component_subscribe($$self, passedData, $$value => $$invalidate(12, $passedData = $$value));
-    	validate_store(userModel, 'userModel');
-    	component_subscribe($$self, userModel, $$value => $$invalidate(13, $userModel = $$value));
     	validate_store(loadedCircuits, 'loadedCircuits');
     	component_subscribe($$self, loadedCircuits, $$value => $$invalidate(1, $loadedCircuits = $$value));
     	validate_store(loggedIn, 'loggedIn');
@@ -13510,55 +13564,6 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     		Client$1.socket.emitJoinNewRoom($loadedCircuits[selectedCircuitIndex]._id);
     	}
 
-    	// Update the display according to the new records, triggered when logged in and when asked for updating records
-    	Client$1.svelte.updateRecordsDisplay = function (circuits, records) {
-    		if (!records || !circuits) {
-    			return;
-    		}
-
-    		set_store_value(loadedCircuits, $loadedCircuits = [...circuits], $loadedCircuits);
-
-    		// Add the records to the circuits
-    		$loadedCircuits.forEach((circuit, i) => {
-    			let recordForCircuit = i < records.length && records[i].run
-    			? records[i]
-    			: undefined;
-
-    			if (recordForCircuit) {
-    				// If there is a record by the user
-    				circuit.userRecord = recordForCircuit; // Add the user record to the circuit object for easier understanding
-
-    				if (!circuit.runs.filter(run => run._userId == $userModel._id).length) {
-    					// If there is no record by this user in the five best times, add it to the table
-    					recordForCircuit.run.formattedRanking = recordForCircuit.ranking + 1;
-
-    					circuit.runs.push(recordForCircuit.run);
-    				}
-    			}
-
-    			if (circuit.rankingFormatted) return;
-    			circuit.rankingFormatted = true;
-
-    			circuit.runs.forEach((globalRecord, j) => {
-    				if (globalRecord._userId == $userModel._id) {
-    					// Highlight the user record in the list
-    					globalRecord.highlighted = true;
-    				}
-
-    				if (!globalRecord.formattedRanking) {
-    					// Add the ranking
-    					globalRecord.formattedRanking = j + 1;
-    				}
-
-    				// Format the whole for displaying
-    				globalRecord.formattedRanking = globalRecord.formattedRanking + "<sup>" + Client$1.getSupFromNumber(globalRecord.formattedRanking) + "</sup>";
-
-    				globalRecord.formattedRunTime = Client$1.race.Functions.msToTime(globalRecord.runTime, 3);
-    			});
-    		});
-    	};
-
-    	Client$1.svelte.updateRecordsDisplay($passedData.circuits, $passedData.records); // Update the records according to tge data sent during the logging in
     	const writable_props = [];
 
     	Object.keys($$props).forEach(key => {
@@ -13568,7 +13573,7 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     	const func = (circuit, i) => ({
     		...circuit,
     		number: i + 1,
-    		name: `Circuit ${i + 1}`,
+    		name: circuit.name || `Circuit ${i + 1}`,
     		stats: formatCircuitStats(circuit),
     		id: i
     	});
@@ -13593,10 +13598,7 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     		fade,
     		Client: Client$1,
     		loadedCircuits,
-    		userModel,
-    		passedData,
     		loggedIn,
-    		css,
     		AppLayout,
     		PointerzButton,
     		Cell,
@@ -13609,8 +13611,6 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     		recordsTableColumns,
     		selectCircuit,
     		joinRace,
-    		$passedData,
-    		$userModel,
     		$loadedCircuits,
     		$loggedIn
     	});
@@ -14964,7 +14964,7 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     /* src\client\svelte\pages\PublicMenu.svelte generated by Svelte v3.59.2 */
     const file$s = "src\\client\\svelte\\pages\\PublicMenu.svelte";
 
-    // (109:8) {#if currentSubpage == SUBPAGES.SIGN_IN}
+    // (105:8) {#if currentSubpage == SUBPAGES.SIGN_IN}
     function create_if_block_4$3(ctx) {
     	let pointerzinput;
     	let updating_value;
@@ -15024,14 +15024,14 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     		block,
     		id: create_if_block_4$3.name,
     		type: "if",
-    		source: "(109:8) {#if currentSubpage == SUBPAGES.SIGN_IN}",
+    		source: "(105:8) {#if currentSubpage == SUBPAGES.SIGN_IN}",
     		ctx
     	});
 
     	return block;
     }
 
-    // (115:8) {#if currentSubpage == SUBPAGES.SIGN_IN || currentSubpage == SUBPAGES.REGISTERED_LOG_IN}
+    // (111:8) {#if currentSubpage == SUBPAGES.SIGN_IN || currentSubpage == SUBPAGES.REGISTERED_LOG_IN}
     function create_if_block_3$3(ctx) {
     	let pointerzinput;
     	let updating_value;
@@ -15094,14 +15094,14 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     		block,
     		id: create_if_block_3$3.name,
     		type: "if",
-    		source: "(115:8) {#if currentSubpage == SUBPAGES.SIGN_IN || currentSubpage == SUBPAGES.REGISTERED_LOG_IN}",
+    		source: "(111:8) {#if currentSubpage == SUBPAGES.SIGN_IN || currentSubpage == SUBPAGES.REGISTERED_LOG_IN}",
     		ctx
     	});
 
     	return block;
     }
 
-    // (129:53) 
+    // (125:53) 
     function create_if_block_2$5(ctx) {
     	let pointerzbutton;
     	let current;
@@ -15129,7 +15129,7 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     		p: function update(ctx, dirty) {
     			const pointerzbutton_changes = {};
 
-    			if (dirty & /*$$scope*/ 2097152) {
+    			if (dirty & /*$$scope*/ 1048576) {
     				pointerzbutton_changes.$$scope = { dirty, ctx };
     			}
 
@@ -15153,14 +15153,14 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     		block,
     		id: create_if_block_2$5.name,
     		type: "if",
-    		source: "(129:53) ",
+    		source: "(125:53) ",
     		ctx
     	});
 
     	return block;
     }
 
-    // (125:63) 
+    // (121:63) 
     function create_if_block_1$8(ctx) {
     	let pointerzbutton;
     	let current;
@@ -15188,7 +15188,7 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     		p: function update(ctx, dirty) {
     			const pointerzbutton_changes = {};
 
-    			if (dirty & /*$$scope*/ 2097152) {
+    			if (dirty & /*$$scope*/ 1048576) {
     				pointerzbutton_changes.$$scope = { dirty, ctx };
     			}
 
@@ -15212,14 +15212,14 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     		block,
     		id: create_if_block_1$8.name,
     		type: "if",
-    		source: "(125:63) ",
+    		source: "(121:63) ",
     		ctx
     	});
 
     	return block;
     }
 
-    // (121:8) {#if currentSubpage == SUBPAGES.PLAY_AS_ANONYMOUS}
+    // (117:8) {#if currentSubpage == SUBPAGES.PLAY_AS_ANONYMOUS}
     function create_if_block$g(ctx) {
     	let pointerzbutton;
     	let current;
@@ -15247,7 +15247,7 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     		p: function update(ctx, dirty) {
     			const pointerzbutton_changes = {};
 
-    			if (dirty & /*$$scope*/ 2097152) {
+    			if (dirty & /*$$scope*/ 1048576) {
     				pointerzbutton_changes.$$scope = { dirty, ctx };
     			}
 
@@ -15271,14 +15271,14 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     		block,
     		id: create_if_block$g.name,
     		type: "if",
-    		source: "(121:8) {#if currentSubpage == SUBPAGES.PLAY_AS_ANONYMOUS}",
+    		source: "(117:8) {#if currentSubpage == SUBPAGES.PLAY_AS_ANONYMOUS}",
     		ctx
     	});
 
     	return block;
     }
 
-    // (130:10) <PointerzButton multicolor important on:click={() => signIn(false)}>
+    // (126:10) <PointerzButton multicolor important on:click={() => signIn(false)}>
     function create_default_slot_9(ctx) {
     	let t;
 
@@ -15298,14 +15298,14 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     		block,
     		id: create_default_slot_9.name,
     		type: "slot",
-    		source: "(130:10) <PointerzButton multicolor important on:click={() => signIn(false)}>",
+    		source: "(126:10) <PointerzButton multicolor important on:click={() => signIn(false)}>",
     		ctx
     	});
 
     	return block;
     }
 
-    // (126:10) <PointerzButton multicolor important on:click={() => logIn(false)}>
+    // (122:10) <PointerzButton multicolor important on:click={() => logIn(false)}>
     function create_default_slot_8$1(ctx) {
     	let t;
 
@@ -15325,14 +15325,14 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     		block,
     		id: create_default_slot_8$1.name,
     		type: "slot",
-    		source: "(126:10) <PointerzButton multicolor important on:click={() => logIn(false)}>",
+    		source: "(122:10) <PointerzButton multicolor important on:click={() => logIn(false)}>",
     		ctx
     	});
 
     	return block;
     }
 
-    // (122:10) <PointerzButton multicolor important on:click={() => logIn(true)}>
+    // (118:10) <PointerzButton multicolor important on:click={() => logIn(true)}>
     function create_default_slot_7$1(ctx) {
     	let t;
 
@@ -15352,15 +15352,15 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     		block,
     		id: create_default_slot_7$1.name,
     		type: "slot",
-    		source: "(122:10) <PointerzButton multicolor important on:click={() => logIn(true)}>",
+    		source: "(118:10) <PointerzButton multicolor important on:click={() => logIn(true)}>",
     		ctx
     	});
 
     	return block;
     }
 
-    // (104:6) <Cell>
-    function create_default_slot_6$1(ctx) {
+    // (100:6) <Cell>
+    function create_default_slot_6$2(ctx) {
     	let pointerzinput;
     	let updating_value;
     	let t0;
@@ -15557,16 +15557,16 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
 
     	dispatch_dev("SvelteRegisterBlock", {
     		block,
-    		id: create_default_slot_6$1.name,
+    		id: create_default_slot_6$2.name,
     		type: "slot",
-    		source: "(104:6) <Cell>",
+    		source: "(100:6) <Cell>",
     		ctx
     	});
 
     	return block;
     }
 
-    // (137:10) <PointerzButton              imagePath="assets/images/menu/log.png"              buttonColor="grey"              on:click={showLoginForm}              elementsPerRow="2"              important              animating              futuristic>
+    // (133:10) <PointerzButton              imagePath="assets/images/menu/log.png"              buttonColor="grey"              on:click={showLoginForm}              elementsPerRow="2"              important              animating              futuristic>
     function create_default_slot_5$2(ctx) {
     	let t;
 
@@ -15586,14 +15586,14 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     		block,
     		id: create_default_slot_5$2.name,
     		type: "slot",
-    		source: "(137:10) <PointerzButton              imagePath=\\\"assets/images/menu/log.png\\\"              buttonColor=\\\"grey\\\"              on:click={showLoginForm}              elementsPerRow=\\\"2\\\"              important              animating              futuristic>",
+    		source: "(133:10) <PointerzButton              imagePath=\\\"assets/images/menu/log.png\\\"              buttonColor=\\\"grey\\\"              on:click={showLoginForm}              elementsPerRow=\\\"2\\\"              important              animating              futuristic>",
     		ctx
     	});
 
     	return block;
     }
 
-    // (147:10) <PointerzButton              imagePath="assets/images/menu/signup.png"              buttonColor="grey"              on:click={showSigninForm}              elementsPerRow="2"              lastElementOfRow              important              animating>
+    // (143:10) <PointerzButton              imagePath="assets/images/menu/signup.png"              buttonColor="grey"              on:click={showSigninForm}              elementsPerRow="2"              lastElementOfRow              important              animating>
     function create_default_slot_4$3(ctx) {
     	let t;
 
@@ -15613,14 +15613,14 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     		block,
     		id: create_default_slot_4$3.name,
     		type: "slot",
-    		source: "(147:10) <PointerzButton              imagePath=\\\"assets/images/menu/signup.png\\\"              buttonColor=\\\"grey\\\"              on:click={showSigninForm}              elementsPerRow=\\\"2\\\"              lastElementOfRow              important              animating>",
+    		source: "(143:10) <PointerzButton              imagePath=\\\"assets/images/menu/signup.png\\\"              buttonColor=\\\"grey\\\"              on:click={showSigninForm}              elementsPerRow=\\\"2\\\"              lastElementOfRow              important              animating>",
     		ctx
     	});
 
     	return block;
     }
 
-    // (136:8) <FlexContainer>
+    // (132:8) <FlexContainer>
     function create_default_slot_3$3(ctx) {
     	let pointerzbutton0;
     	let t;
@@ -15674,14 +15674,14 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     		p: function update(ctx, dirty) {
     			const pointerzbutton0_changes = {};
 
-    			if (dirty & /*$$scope*/ 2097152) {
+    			if (dirty & /*$$scope*/ 1048576) {
     				pointerzbutton0_changes.$$scope = { dirty, ctx };
     			}
 
     			pointerzbutton0.$set(pointerzbutton0_changes);
     			const pointerzbutton1_changes = {};
 
-    			if (dirty & /*$$scope*/ 2097152) {
+    			if (dirty & /*$$scope*/ 1048576) {
     				pointerzbutton1_changes.$$scope = { dirty, ctx };
     			}
 
@@ -15709,14 +15709,14 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     		block,
     		id: create_default_slot_3$3.name,
     		type: "slot",
-    		source: "(136:8) <FlexContainer>",
+    		source: "(132:8) <FlexContainer>",
     		ctx
     	});
 
     	return block;
     }
 
-    // (135:6) <Cell>
+    // (131:6) <Cell>
     function create_default_slot_2$3(ctx) {
     	let flexcontainer;
     	let current;
@@ -15740,7 +15740,7 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     		p: function update(ctx, dirty) {
     			const flexcontainer_changes = {};
 
-    			if (dirty & /*$$scope*/ 2097152) {
+    			if (dirty & /*$$scope*/ 1048576) {
     				flexcontainer_changes.$$scope = { dirty, ctx };
     			}
 
@@ -15764,14 +15764,14 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     		block,
     		id: create_default_slot_2$3.name,
     		type: "slot",
-    		source: "(135:6) <Cell>",
+    		source: "(131:6) <Cell>",
     		ctx
     	});
 
     	return block;
     }
 
-    // (97:4) <Cell        style="        min-width:{css.publicMenu.minWidth}px;        max-width:{css.publicMenu.maxWidth}px;        display: inline-block;      "        noMargin>
+    // (93:4) <Cell        style="        min-width:{css.publicMenu.minWidth}px;        max-width:{css.publicMenu.maxWidth}px;        display: inline-block;      "        noMargin>
     function create_default_slot_1$4(ctx) {
     	let cell0;
     	let t;
@@ -15780,7 +15780,7 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
 
     	cell0 = new Cell({
     			props: {
-    				$$slots: { default: [create_default_slot_6$1] },
+    				$$slots: { default: [create_default_slot_6$2] },
     				$$scope: { ctx }
     			},
     			$$inline: true
@@ -15809,14 +15809,14 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     		p: function update(ctx, dirty) {
     			const cell0_changes = {};
 
-    			if (dirty & /*$$scope, currentSubpage, $playerPassword, $playerMail, $playerName*/ 2097167) {
+    			if (dirty & /*$$scope, currentSubpage, $playerPassword, $playerMail, $playerName*/ 1048591) {
     				cell0_changes.$$scope = { dirty, ctx };
     			}
 
     			cell0.$set(cell0_changes);
     			const cell1_changes = {};
 
-    			if (dirty & /*$$scope*/ 2097152) {
+    			if (dirty & /*$$scope*/ 1048576) {
     				cell1_changes.$$scope = { dirty, ctx };
     			}
 
@@ -15844,14 +15844,14 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     		block,
     		id: create_default_slot_1$4.name,
     		type: "slot",
-    		source: "(97:4) <Cell        style=\\\"        min-width:{css.publicMenu.minWidth}px;        max-width:{css.publicMenu.maxWidth}px;        display: inline-block;      \\\"        noMargin>",
+    		source: "(93:4) <Cell        style=\\\"        min-width:{css.publicMenu.minWidth}px;        max-width:{css.publicMenu.maxWidth}px;        display: inline-block;      \\\"        noMargin>",
     		ctx
     	});
 
     	return block;
     }
 
-    // (95:0) <AppLayout>
+    // (91:0) <AppLayout>
     function create_default_slot$8(ctx) {
     	let div;
     	let cell;
@@ -15873,7 +15873,7 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     		c: function create() {
     			div = element("div");
     			create_component(cell.$$.fragment);
-    			add_location(div, file$s, 95, 2, 2720);
+    			add_location(div, file$s, 91, 2, 2732);
     		},
     		m: function mount(target, anchor) {
     			insert_dev(target, div, anchor);
@@ -15883,7 +15883,7 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     		p: function update(ctx, dirty) {
     			const cell_changes = {};
 
-    			if (dirty & /*$$scope, currentSubpage, $playerPassword, $playerMail, $playerName*/ 2097167) {
+    			if (dirty & /*$$scope, currentSubpage, $playerPassword, $playerMail, $playerName*/ 1048591) {
     				cell_changes.$$scope = { dirty, ctx };
     			}
 
@@ -15919,7 +15919,7 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     		block,
     		id: create_default_slot$8.name,
     		type: "slot",
-    		source: "(95:0) <AppLayout>",
+    		source: "(91:0) <AppLayout>",
     		ctx
     	});
 
@@ -15952,7 +15952,7 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     		p: function update(ctx, [dirty]) {
     			const applayout_changes = {};
 
-    			if (dirty & /*$$scope, currentSubpage, $playerPassword, $playerMail, $playerName*/ 2097167) {
+    			if (dirty & /*$$scope, currentSubpage, $playerPassword, $playerMail, $playerName*/ 1048591) {
     				applayout_changes.$$scope = { dirty, ctx };
     			}
 
@@ -15990,7 +15990,6 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     	let $playerMail;
     	let $playerName;
     	let $loggedIn;
-    	let $passedData;
     	let $userModel;
     	validate_store(infoInfo, 'infoInfo');
     	component_subscribe($$self, infoInfo, $$value => $$invalidate(16, $infoInfo = $$value));
@@ -16004,10 +16003,8 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     	component_subscribe($$self, playerName, $$value => $$invalidate(3, $playerName = $$value));
     	validate_store(loggedIn, 'loggedIn');
     	component_subscribe($$self, loggedIn, $$value => $$invalidate(18, $loggedIn = $$value));
-    	validate_store(passedData, 'passedData');
-    	component_subscribe($$self, passedData, $$value => $$invalidate(19, $passedData = $$value));
     	validate_store(userModel, 'userModel');
-    	component_subscribe($$self, userModel, $$value => $$invalidate(20, $userModel = $$value));
+    	component_subscribe($$self, userModel, $$value => $$invalidate(19, $userModel = $$value));
     	let { $$slots: slots = {}, $$scope } = $$props;
     	validate_slots('PublicMenu', slots, []);
 
@@ -16053,17 +16050,9 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     		if (!retError) {
     			set_store_value(loggedIn, $loggedIn = !anonymous, $loggedIn); // This is only a local variable as an indicator to know if the user is anonymous or not, the server handles the rest
     			set_store_value(userModel, $userModel = user, $userModel);
-
-    			set_store_value(
-    				passedData,
-    				$passedData = {
-    					circuits,
-    					records,
-    					editorCircuits,
-    					voteCircuits
-    				},
-    				$passedData
-    			);
+    			Client$1.svelte.updateLoadedCampaignCircuits(circuits, records);
+    			Client$1.svelte.updateLoadedVoteCircuits(voteCircuits);
+    			Client$1.svelte.updateLoadedEditorCircuits(editorCircuits);
 
     			$loggedIn
     			? Client$1.pushRoute("/privatemenu")
@@ -16118,7 +16107,6 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     		Client: Client$1,
     		userModel,
     		loggedIn,
-    		passedData,
     		playerName,
     		playerMail,
     		playerPassword,
@@ -16142,7 +16130,6 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     		$playerMail,
     		$playerName,
     		$loggedIn,
-    		$passedData,
     		$userModel
     	});
 
@@ -18350,7 +18337,7 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     				buttonColor: "green",
     				important: true,
     				elementsPerRow: "2",
-    				$$slots: { default: [create_default_slot_6] },
+    				$$slots: { default: [create_default_slot_6$1] },
     				$$scope: { ctx }
     			},
     			$$inline: true
@@ -18401,7 +18388,7 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     }
 
     // (145:10) <PointerzButton              buttonColor="green"              on:click={resume}              important              elementsPerRow="2">
-    function create_default_slot_6(ctx) {
+    function create_default_slot_6$1(ctx) {
     	let t;
 
     	const block = {
@@ -18418,7 +18405,7 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
 
     	dispatch_dev("SvelteRegisterBlock", {
     		block,
-    		id: create_default_slot_6.name,
+    		id: create_default_slot_6$1.name,
     		type: "slot",
     		source: "(145:10) <PointerzButton              buttonColor=\\\"green\\\"              on:click={resume}              important              elementsPerRow=\\\"2\\\">",
     		ctx
@@ -19493,28 +19480,44 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     /* src\client\svelte\pages\EditorMenu.svelte generated by Svelte v3.59.2 */
     const file$i = "src\\client\\svelte\\pages\\EditorMenu.svelte";
 
-    // (172:10) {#if selectedCircuitId}
+    // (193:10) {#if selectedCircuitId}
     function create_if_block$9(ctx) {
     	let div;
-    	let pointerzbutton;
-    	let t;
+    	let pointerzbutton0;
+    	let t0;
+    	let pointerzbutton1;
+    	let t1;
     	let pointerzconfirm;
     	let div_transition;
     	let current;
 
-    	pointerzbutton = new PointerzButton({
+    	pointerzbutton0 = new PointerzButton({
     			props: {
     				buttonColor: "darkBlue",
     				important: true,
     				noMargins: true,
     				imagePath: "assets/images/menu/edit.png",
+    				$$slots: { default: [create_default_slot_6] },
+    				$$scope: { ctx }
+    			},
+    			$$inline: true
+    		});
+
+    	pointerzbutton0.$on("click", /*editSelectedEditorCircuit*/ ctx[9]);
+
+    	pointerzbutton1 = new PointerzButton({
+    			props: {
+    				buttonColor: "darkOrange",
+    				important: true,
+    				noMargins: true,
+    				imagePath: "assets/images/menu/rename.png",
     				$$slots: { default: [create_default_slot_5] },
     				$$scope: { ctx }
     			},
     			$$inline: true
     		});
 
-    	pointerzbutton.$on("click", /*editSelectedEditorCircuit*/ ctx[5]);
+    	pointerzbutton1.$on("click", /*click_handler*/ ctx[14]);
 
     	pointerzconfirm = new PointerzConfirm({
     			props: {
@@ -19522,19 +19525,19 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     				cancelTitle: "Cancel",
     				$$slots: {
     					description: [
-    						create_description_slot$1,
-    						({ confirm: confirmThis }) => ({ 18: confirmThis }),
-    						({ confirm: confirmThis }) => confirmThis ? 262144 : 0
+    						create_description_slot_1,
+    						({ confirm: confirmThis }) => ({ 23: confirmThis }),
+    						({ confirm: confirmThis }) => confirmThis ? 8388608 : 0
     					],
     					title: [
-    						create_title_slot$1,
-    						({ confirm: confirmThis }) => ({ 18: confirmThis }),
-    						({ confirm: confirmThis }) => confirmThis ? 262144 : 0
+    						create_title_slot_1$1,
+    						({ confirm: confirmThis }) => ({ 23: confirmThis }),
+    						({ confirm: confirmThis }) => confirmThis ? 8388608 : 0
     					],
     					default: [
     						create_default_slot_3$1,
-    						({ confirm: confirmThis }) => ({ 18: confirmThis }),
-    						({ confirm: confirmThis }) => confirmThis ? 262144 : 0
+    						({ confirm: confirmThis }) => ({ 23: confirmThis }),
+    						({ confirm: confirmThis }) => confirmThis ? 8388608 : 0
     					]
     				},
     				$$scope: { ctx }
@@ -19545,30 +19548,41 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     	const block = {
     		c: function create() {
     			div = element("div");
-    			create_component(pointerzbutton.$$.fragment);
-    			t = space();
+    			create_component(pointerzbutton0.$$.fragment);
+    			t0 = space();
+    			create_component(pointerzbutton1.$$.fragment);
+    			t1 = space();
     			create_component(pointerzconfirm.$$.fragment);
-    			attr_dev(div, "class", "actions-container svelte-15t4cjr");
-    			add_location(div, file$i, 172, 12, 5063);
+    			attr_dev(div, "class", "actions-container svelte-slgji7");
+    			add_location(div, file$i, 193, 12, 5811);
     		},
     		m: function mount(target, anchor) {
     			insert_dev(target, div, anchor);
-    			mount_component(pointerzbutton, div, null);
-    			append_dev(div, t);
+    			mount_component(pointerzbutton0, div, null);
+    			append_dev(div, t0);
+    			mount_component(pointerzbutton1, div, null);
+    			append_dev(div, t1);
     			mount_component(pointerzconfirm, div, null);
     			current = true;
     		},
     		p: function update(ctx, dirty) {
-    			const pointerzbutton_changes = {};
+    			const pointerzbutton0_changes = {};
 
-    			if (dirty & /*$$scope*/ 524288) {
-    				pointerzbutton_changes.$$scope = { dirty, ctx };
+    			if (dirty & /*$$scope*/ 16777216) {
+    				pointerzbutton0_changes.$$scope = { dirty, ctx };
     			}
 
-    			pointerzbutton.$set(pointerzbutton_changes);
+    			pointerzbutton0.$set(pointerzbutton0_changes);
+    			const pointerzbutton1_changes = {};
+
+    			if (dirty & /*$$scope*/ 16777216) {
+    				pointerzbutton1_changes.$$scope = { dirty, ctx };
+    			}
+
+    			pointerzbutton1.$set(pointerzbutton1_changes);
     			const pointerzconfirm_changes = {};
 
-    			if (dirty & /*$$scope, confirmThis*/ 786432) {
+    			if (dirty & /*$$scope, confirmThis*/ 25165824) {
     				pointerzconfirm_changes.$$scope = { dirty, ctx };
     			}
 
@@ -19576,7 +19590,8 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     		},
     		i: function intro(local) {
     			if (current) return;
-    			transition_in(pointerzbutton.$$.fragment, local);
+    			transition_in(pointerzbutton0.$$.fragment, local);
+    			transition_in(pointerzbutton1.$$.fragment, local);
     			transition_in(pointerzconfirm.$$.fragment, local);
 
     			add_render_callback(() => {
@@ -19588,7 +19603,8 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     			current = true;
     		},
     		o: function outro(local) {
-    			transition_out(pointerzbutton.$$.fragment, local);
+    			transition_out(pointerzbutton0.$$.fragment, local);
+    			transition_out(pointerzbutton1.$$.fragment, local);
     			transition_out(pointerzconfirm.$$.fragment, local);
     			if (!div_transition) div_transition = create_bidirectional_transition(div, slide, {}, false);
     			div_transition.run(0);
@@ -19596,7 +19612,8 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     		},
     		d: function destroy(detaching) {
     			if (detaching) detach_dev(div);
-    			destroy_component(pointerzbutton);
+    			destroy_component(pointerzbutton0);
+    			destroy_component(pointerzbutton1);
     			destroy_component(pointerzconfirm);
     			if (detaching && div_transition) div_transition.end();
     		}
@@ -19606,15 +19623,15 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     		block,
     		id: create_if_block$9.name,
     		type: "if",
-    		source: "(172:10) {#if selectedCircuitId}",
+    		source: "(193:10) {#if selectedCircuitId}",
     		ctx
     	});
 
     	return block;
     }
 
-    // (174:14) <PointerzButton                  buttonColor="darkBlue"                  important                  noMargins                  imagePath="assets/images/menu/edit.png"                  on:click={editSelectedEditorCircuit}>
-    function create_default_slot_5(ctx) {
+    // (195:14) <PointerzButton                  buttonColor="darkBlue"                  important                  noMargins                  imagePath="assets/images/menu/edit.png"                  on:click={editSelectedEditorCircuit}>
+    function create_default_slot_6(ctx) {
     	let t;
 
     	const block = {
@@ -19631,16 +19648,43 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
 
     	dispatch_dev("SvelteRegisterBlock", {
     		block,
-    		id: create_default_slot_5.name,
+    		id: create_default_slot_6.name,
     		type: "slot",
-    		source: "(174:14) <PointerzButton                  buttonColor=\\\"darkBlue\\\"                  important                  noMargins                  imagePath=\\\"assets/images/menu/edit.png\\\"                  on:click={editSelectedEditorCircuit}>",
+    		source: "(195:14) <PointerzButton                  buttonColor=\\\"darkBlue\\\"                  important                  noMargins                  imagePath=\\\"assets/images/menu/edit.png\\\"                  on:click={editSelectedEditorCircuit}>",
     		ctx
     	});
 
     	return block;
     }
 
-    // (187:16) <PointerzButton                    buttonColor="darkRed"                    important                    noMargins                    imagePath="assets/images/menu/delete.png"                    noSound                    on:click={() => confirmThis(deleteEditorCircuit)}>
+    // (204:14) <PointerzButton                  buttonColor="darkOrange"                  important                  noMargins                  imagePath="assets/images/menu/rename.png"                  on:click={() => {                    newCircuitName = selectedCircuit.name;                    openRenameModal = true;                  }}>
+    function create_default_slot_5(ctx) {
+    	let t;
+
+    	const block = {
+    		c: function create() {
+    			t = text("Rename");
+    		},
+    		m: function mount(target, anchor) {
+    			insert_dev(target, t, anchor);
+    		},
+    		d: function destroy(detaching) {
+    			if (detaching) detach_dev(t);
+    		}
+    	};
+
+    	dispatch_dev("SvelteRegisterBlock", {
+    		block,
+    		id: create_default_slot_5.name,
+    		type: "slot",
+    		source: "(204:14) <PointerzButton                  buttonColor=\\\"darkOrange\\\"                  important                  noMargins                  imagePath=\\\"assets/images/menu/rename.png\\\"                  on:click={() => {                    newCircuitName = selectedCircuit.name;                    openRenameModal = true;                  }}>",
+    		ctx
+    	});
+
+    	return block;
+    }
+
+    // (220:16) <PointerzButton                    buttonColor="darkRed"                    important                    noMargins                    imagePath="assets/images/menu/delete.png"                    noSound                    on:click={() => confirmThis(deleteEditorCircuit)}>
     function create_default_slot_4$1(ctx) {
     	let t;
 
@@ -19660,20 +19704,20 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     		block,
     		id: create_default_slot_4$1.name,
     		type: "slot",
-    		source: "(187:16) <PointerzButton                    buttonColor=\\\"darkRed\\\"                    important                    noMargins                    imagePath=\\\"assets/images/menu/delete.png\\\"                    noSound                    on:click={() => confirmThis(deleteEditorCircuit)}>",
+    		source: "(220:16) <PointerzButton                    buttonColor=\\\"darkRed\\\"                    important                    noMargins                    imagePath=\\\"assets/images/menu/delete.png\\\"                    noSound                    on:click={() => confirmThis(deleteEditorCircuit)}>",
     		ctx
     	});
 
     	return block;
     }
 
-    // (183:14) <PointerzConfirm                  let:confirm={confirmThis}                  confirmTitle="Delete"                  cancelTitle="Cancel">
+    // (216:14) <PointerzConfirm                  let:confirm={confirmThis}                  confirmTitle="Delete"                  cancelTitle="Cancel">
     function create_default_slot_3$1(ctx) {
     	let pointerzbutton;
     	let current;
 
-    	function click_handler() {
-    		return /*click_handler*/ ctx[10](/*confirmThis*/ ctx[18]);
+    	function click_handler_1() {
+    		return /*click_handler_1*/ ctx[15](/*confirmThis*/ ctx[23]);
     	}
 
     	pointerzbutton = new PointerzButton({
@@ -19689,7 +19733,7 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     			$$inline: true
     		});
 
-    	pointerzbutton.$on("click", click_handler);
+    	pointerzbutton.$on("click", click_handler_1);
 
     	const block = {
     		c: function create() {
@@ -19703,7 +19747,7 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     			ctx = new_ctx;
     			const pointerzbutton_changes = {};
 
-    			if (dirty & /*$$scope*/ 524288) {
+    			if (dirty & /*$$scope*/ 16777216) {
     				pointerzbutton_changes.$$scope = { dirty, ctx };
     			}
 
@@ -19727,15 +19771,15 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     		block,
     		id: create_default_slot_3$1.name,
     		type: "slot",
-    		source: "(183:14) <PointerzConfirm                  let:confirm={confirmThis}                  confirmTitle=\\\"Delete\\\"                  cancelTitle=\\\"Cancel\\\">",
+    		source: "(216:14) <PointerzConfirm                  let:confirm={confirmThis}                  confirmTitle=\\\"Delete\\\"                  cancelTitle=\\\"Cancel\\\">",
     		ctx
     	});
 
     	return block;
     }
 
-    // (196:16) 
-    function create_title_slot$1(ctx) {
+    // (229:16) 
+    function create_title_slot_1$1(ctx) {
     	let span;
 
     	const block = {
@@ -19743,7 +19787,7 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     			span = element("span");
     			span.textContent = "Do you really want to delete this circuit?";
     			attr_dev(span, "slot", "title");
-    			add_location(span, file$i, 195, 16, 5927);
+    			add_location(span, file$i, 228, 16, 7077);
     		},
     		m: function mount(target, anchor) {
     			insert_dev(target, span, anchor);
@@ -19756,24 +19800,24 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
 
     	dispatch_dev("SvelteRegisterBlock", {
     		block,
-    		id: create_title_slot$1.name,
+    		id: create_title_slot_1$1.name,
     		type: "slot",
-    		source: "(196:16) ",
+    		source: "(229:16) ",
     		ctx
     	});
 
     	return block;
     }
 
-    // (198:16) 
-    function create_description_slot$1(ctx) {
+    // (231:16) 
+    function create_description_slot_1(ctx) {
     	let span;
 
     	const block = {
     		c: function create() {
     			span = element("span");
     			attr_dev(span, "slot", "description");
-    			add_location(span, file$i, 197, 16, 6033);
+    			add_location(span, file$i, 230, 16, 7183);
     		},
     		m: function mount(target, anchor) {
     			insert_dev(target, span, anchor);
@@ -19786,16 +19830,16 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
 
     	dispatch_dev("SvelteRegisterBlock", {
     		block,
-    		id: create_description_slot$1.name,
+    		id: create_description_slot_1.name,
     		type: "slot",
-    		source: "(198:16) ",
+    		source: "(231:16) ",
     		ctx
     	});
 
     	return block;
     }
 
-    // (203:12) <PointerzButton                buttonColor="darkGreen"                important                noMargins                imagePath="assets/images/menu/add.png"                on:click={createNewCircuit}>
+    // (236:12) <PointerzButton                buttonColor="darkGreen"                important                noMargins                imagePath="assets/images/menu/add.png"                on:click={createNewCircuit}>
     function create_default_slot_2$1(ctx) {
     	let t;
 
@@ -19815,14 +19859,14 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     		block,
     		id: create_default_slot_2$1.name,
     		type: "slot",
-    		source: "(203:12) <PointerzButton                buttonColor=\\\"darkGreen\\\"                important                noMargins                imagePath=\\\"assets/images/menu/add.png\\\"                on:click={createNewCircuit}>",
+    		source: "(236:12) <PointerzButton                buttonColor=\\\"darkGreen\\\"                important                noMargins                imagePath=\\\"assets/images/menu/add.png\\\"                on:click={createNewCircuit}>",
     		ctx
     	});
 
     	return block;
     }
 
-    // (168:8) <Cell            title="Circuit Actions"            color="darkBlue"            titleImagePath="assets/images/menu/gear.png">
+    // (189:8) <Cell            title="Circuit Actions"            color="darkBlue"            titleImagePath="assets/images/menu/gear.png">
     function create_default_slot_1$2(ctx) {
     	let t;
     	let div;
@@ -19842,7 +19886,7 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     			$$inline: true
     		});
 
-    	pointerzbutton.$on("click", /*createNewCircuit*/ ctx[3]);
+    	pointerzbutton.$on("click", /*createNewCircuit*/ ctx[7]);
 
     	const block = {
     		c: function create() {
@@ -19850,8 +19894,8 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     			t = space();
     			div = element("div");
     			create_component(pointerzbutton.$$.fragment);
-    			attr_dev(div, "class", "actions-container svelte-15t4cjr");
-    			add_location(div, file$i, 201, 10, 6143);
+    			attr_dev(div, "class", "actions-container svelte-slgji7");
+    			add_location(div, file$i, 234, 10, 7293);
     		},
     		m: function mount(target, anchor) {
     			if (if_block) if_block.m(target, anchor);
@@ -19886,7 +19930,7 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
 
     			const pointerzbutton_changes = {};
 
-    			if (dirty & /*$$scope*/ 524288) {
+    			if (dirty & /*$$scope*/ 16777216) {
     				pointerzbutton_changes.$$scope = { dirty, ctx };
     			}
 
@@ -19915,14 +19959,140 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     		block,
     		id: create_default_slot_1$2.name,
     		type: "slot",
-    		source: "(168:8) <Cell            title=\\\"Circuit Actions\\\"            color=\\\"darkBlue\\\"            titleImagePath=\\\"assets/images/menu/gear.png\\\">",
+    		source: "(189:8) <Cell            title=\\\"Circuit Actions\\\"            color=\\\"darkBlue\\\"            titleImagePath=\\\"assets/images/menu/gear.png\\\">",
     		ctx
     	});
 
     	return block;
     }
 
-    // (147:0) <AppLayout>
+    // (255:4) 
+    function create_title_slot$1(ctx) {
+    	let span;
+
+    	const block = {
+    		c: function create() {
+    			span = element("span");
+    			span.textContent = "Rename Circuit";
+    			attr_dev(span, "slot", "title");
+    			add_location(span, file$i, 254, 4, 7850);
+    		},
+    		m: function mount(target, anchor) {
+    			insert_dev(target, span, anchor);
+    		},
+    		p: noop,
+    		d: function destroy(detaching) {
+    			if (detaching) detach_dev(span);
+    		}
+    	};
+
+    	dispatch_dev("SvelteRegisterBlock", {
+    		block,
+    		id: create_title_slot$1.name,
+    		type: "slot",
+    		source: "(255:4) ",
+    		ctx
+    	});
+
+    	return block;
+    }
+
+    // (256:4) 
+    function create_description_slot$1(ctx) {
+    	let span;
+    	let div0;
+    	let t1;
+    	let div2;
+    	let div1;
+    	let pointerzinput;
+    	let updating_value;
+    	let current;
+
+    	function pointerzinput_value_binding(value) {
+    		/*pointerzinput_value_binding*/ ctx[16](value);
+    	}
+
+    	let pointerzinput_props = {
+    		type: "text",
+    		placeholder: "New circuit name"
+    	};
+
+    	if (/*newCircuitName*/ ctx[2] !== void 0) {
+    		pointerzinput_props.value = /*newCircuitName*/ ctx[2];
+    	}
+
+    	pointerzinput = new PointerzInput({
+    			props: pointerzinput_props,
+    			$$inline: true
+    		});
+
+    	binding_callbacks.push(() => bind(pointerzinput, 'value', pointerzinput_value_binding));
+
+    	const block = {
+    		c: function create() {
+    			span = element("span");
+    			div0 = element("div");
+    			div0.textContent = "Enter a new name for your circuit";
+    			t1 = space();
+    			div2 = element("div");
+    			div1 = element("div");
+    			create_component(pointerzinput.$$.fragment);
+    			attr_dev(div0, "class", "paragraph svelte-slgji7");
+    			add_location(div0, file$i, 256, 6, 7929);
+    			attr_dev(div1, "class", "flex-auto svelte-slgji7");
+    			add_location(div1, file$i, 258, 8, 8038);
+    			attr_dev(div2, "class", "flex margin-top svelte-slgji7");
+    			add_location(div2, file$i, 257, 6, 7999);
+    			attr_dev(span, "slot", "description");
+    			add_location(span, file$i, 255, 4, 7896);
+    		},
+    		m: function mount(target, anchor) {
+    			insert_dev(target, span, anchor);
+    			append_dev(span, div0);
+    			append_dev(span, t1);
+    			append_dev(span, div2);
+    			append_dev(div2, div1);
+    			mount_component(pointerzinput, div1, null);
+    			current = true;
+    		},
+    		p: function update(ctx, dirty) {
+    			const pointerzinput_changes = {};
+
+    			if (!updating_value && dirty & /*newCircuitName*/ 4) {
+    				updating_value = true;
+    				pointerzinput_changes.value = /*newCircuitName*/ ctx[2];
+    				add_flush_callback(() => updating_value = false);
+    			}
+
+    			pointerzinput.$set(pointerzinput_changes);
+    		},
+    		i: function intro(local) {
+    			if (current) return;
+    			transition_in(pointerzinput.$$.fragment, local);
+    			current = true;
+    		},
+    		o: function outro(local) {
+    			transition_out(pointerzinput.$$.fragment, local);
+    			current = false;
+    		},
+    		d: function destroy(detaching) {
+    			if (detaching) detach_dev(span);
+    			destroy_component(pointerzinput);
+    		}
+    	};
+
+    	dispatch_dev("SvelteRegisterBlock", {
+    		block,
+    		id: create_description_slot$1.name,
+    		type: "slot",
+    		source: "(256:4) ",
+    		ctx
+    	});
+
+    	return block;
+    }
+
+    // (168:0) <AppLayout>
     function create_default_slot$6(ctx) {
     	let offlineredirect;
     	let t0;
@@ -19938,6 +20108,9 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     	let cell;
     	let div3_intro;
     	let div3_outro;
+    	let t3;
+    	let pointerzmodal;
+    	let updating_showDialog;
     	let current;
     	offlineredirect = new OfflineRedirect({ $$inline: true });
 
@@ -19947,11 +20120,11 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     		});
 
     	function selectiongrid_selectedId_binding(value) {
-    		/*selectiongrid_selectedId_binding*/ ctx[8](value);
+    		/*selectiongrid_selectedId_binding*/ ctx[12](value);
     	}
 
     	let selectiongrid_props = {
-    		items: /*formattedCircuits*/ ctx[1],
+    		items: /*formattedCircuits*/ ctx[3],
     		title: "Your Circuits",
     		titleColor: "darkOrange",
     		titleIcon: "assets/images/menu/circuit.png",
@@ -19968,7 +20141,7 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     		});
 
     	binding_callbacks.push(() => bind(selectiongrid, 'selectedId', selectiongrid_selectedId_binding));
-    	selectiongrid.$on("select", /*select_handler*/ ctx[9]);
+    	selectiongrid.$on("select", /*select_handler*/ ctx[13]);
 
     	cell = new Cell({
     			props: {
@@ -19980,6 +20153,33 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     			},
     			$$inline: true
     		});
+
+    	function pointerzmodal_showDialog_binding(value) {
+    		/*pointerzmodal_showDialog_binding*/ ctx[17](value);
+    	}
+
+    	let pointerzmodal_props = {
+    		color: "darkOrange",
+    		confirmTitle: "Rename",
+    		confirmFunction: /*renameSelectedCircuit*/ ctx[5],
+    		canCancel: true,
+    		$$slots: {
+    			description: [create_description_slot$1],
+    			title: [create_title_slot$1]
+    		},
+    		$$scope: { ctx }
+    	};
+
+    	if (/*openRenameModal*/ ctx[1] !== void 0) {
+    		pointerzmodal_props.showDialog = /*openRenameModal*/ ctx[1];
+    	}
+
+    	pointerzmodal = new PointerzModal({
+    			props: pointerzmodal_props,
+    			$$inline: true
+    		});
+
+    	binding_callbacks.push(() => bind(pointerzmodal, 'showDialog', pointerzmodal_showDialog_binding));
 
     	const block = {
     		c: function create() {
@@ -19994,14 +20194,16 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     			t2 = space();
     			div1 = element("div");
     			create_component(cell.$$.fragment);
+    			t3 = space();
+    			create_component(pointerzmodal.$$.fragment);
     			attr_dev(div0, "class", "circuits-column");
-    			add_location(div0, file$i, 155, 6, 4459);
+    			add_location(div0, file$i, 176, 6, 5207);
     			attr_dev(div1, "class", "details-column");
-    			add_location(div1, file$i, 166, 6, 4851);
-    			attr_dev(div2, "class", "content-grid svelte-15t4cjr");
-    			add_location(div2, file$i, 154, 4, 4425);
-    			attr_dev(div3, "class", "container svelte-15t4cjr");
-    			add_location(div3, file$i, 148, 2, 4260);
+    			add_location(div1, file$i, 187, 6, 5599);
+    			attr_dev(div2, "class", "content-grid svelte-slgji7");
+    			add_location(div2, file$i, 175, 4, 5173);
+    			attr_dev(div3, "class", "container svelte-slgji7");
+    			add_location(div3, file$i, 169, 2, 5008);
     		},
     		m: function mount(target, anchor) {
     			mount_component(offlineredirect, target, anchor);
@@ -20015,11 +20217,13 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     			append_dev(div2, t2);
     			append_dev(div2, div1);
     			mount_component(cell, div1, null);
+    			insert_dev(target, t3, anchor);
+    			mount_component(pointerzmodal, target, anchor);
     			current = true;
     		},
     		p: function update(ctx, dirty) {
     			const selectiongrid_changes = {};
-    			if (dirty & /*formattedCircuits*/ 2) selectiongrid_changes.items = /*formattedCircuits*/ ctx[1];
+    			if (dirty & /*formattedCircuits*/ 8) selectiongrid_changes.items = /*formattedCircuits*/ ctx[3];
 
     			if (!updating_selectedId && dirty & /*selectedCircuitId*/ 1) {
     				updating_selectedId = true;
@@ -20030,11 +20234,24 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     			selectiongrid.$set(selectiongrid_changes);
     			const cell_changes = {};
 
-    			if (dirty & /*$$scope, selectedCircuitId*/ 524289) {
+    			if (dirty & /*$$scope, newCircuitName, selectedCircuit, openRenameModal, selectedCircuitId*/ 16777239) {
     				cell_changes.$$scope = { dirty, ctx };
     			}
 
     			cell.$set(cell_changes);
+    			const pointerzmodal_changes = {};
+
+    			if (dirty & /*$$scope, newCircuitName*/ 16777220) {
+    				pointerzmodal_changes.$$scope = { dirty, ctx };
+    			}
+
+    			if (!updating_showDialog && dirty & /*openRenameModal*/ 2) {
+    				updating_showDialog = true;
+    				pointerzmodal_changes.showDialog = /*openRenameModal*/ ctx[1];
+    				add_flush_callback(() => updating_showDialog = false);
+    			}
+
+    			pointerzmodal.$set(pointerzmodal_changes);
     		},
     		i: function intro(local) {
     			if (current) return;
@@ -20050,6 +20267,7 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     				div3_intro.start();
     			});
 
+    			transition_in(pointerzmodal.$$.fragment, local);
     			current = true;
     		},
     		o: function outro(local) {
@@ -20059,6 +20277,7 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     			transition_out(cell.$$.fragment, local);
     			if (div3_intro) div3_intro.invalidate();
     			div3_outro = create_out_transition(div3, fade, { duration: 400 });
+    			transition_out(pointerzmodal.$$.fragment, local);
     			current = false;
     		},
     		d: function destroy(detaching) {
@@ -20069,6 +20288,8 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     			destroy_component(selectiongrid);
     			destroy_component(cell);
     			if (detaching && div3_outro) div3_outro.end();
+    			if (detaching) detach_dev(t3);
+    			destroy_component(pointerzmodal, detaching);
     		}
     	};
 
@@ -20076,7 +20297,7 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     		block,
     		id: create_default_slot$6.name,
     		type: "slot",
-    		source: "(147:0) <AppLayout>",
+    		source: "(168:0) <AppLayout>",
     		ctx
     	});
 
@@ -20109,7 +20330,7 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     		p: function update(ctx, [dirty]) {
     			const applayout_changes = {};
 
-    			if (dirty & /*$$scope, selectedCircuitId, formattedCircuits*/ 524291) {
+    			if (dirty & /*$$scope, openRenameModal, newCircuitName, selectedCircuit, selectedCircuitId, formattedCircuits*/ 16777247) {
     				applayout_changes.$$scope = { dirty, ctx };
     			}
 
@@ -20145,26 +20366,25 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
 
     function instance$j($$self, $$props, $$invalidate) {
     	let selectedCircuit;
-    	let $passedData;
     	let $loadedEditorCircuits;
     	let $infoInfo;
     	let $infoError;
     	let $loadedCircuits;
     	let $loadedVoteCircuits;
-    	validate_store(passedData, 'passedData');
-    	component_subscribe($$self, passedData, $$value => $$invalidate(13, $passedData = $$value));
     	validate_store(loadedEditorCircuits, 'loadedEditorCircuits');
-    	component_subscribe($$self, loadedEditorCircuits, $$value => $$invalidate(6, $loadedEditorCircuits = $$value));
+    	component_subscribe($$self, loadedEditorCircuits, $$value => $$invalidate(10, $loadedEditorCircuits = $$value));
     	validate_store(infoInfo, 'infoInfo');
-    	component_subscribe($$self, infoInfo, $$value => $$invalidate(14, $infoInfo = $$value));
+    	component_subscribe($$self, infoInfo, $$value => $$invalidate(19, $infoInfo = $$value));
     	validate_store(infoError, 'infoError');
-    	component_subscribe($$self, infoError, $$value => $$invalidate(15, $infoError = $$value));
+    	component_subscribe($$self, infoError, $$value => $$invalidate(20, $infoError = $$value));
     	validate_store(loadedCircuits, 'loadedCircuits');
-    	component_subscribe($$self, loadedCircuits, $$value => $$invalidate(16, $loadedCircuits = $$value));
+    	component_subscribe($$self, loadedCircuits, $$value => $$invalidate(21, $loadedCircuits = $$value));
     	validate_store(loadedVoteCircuits, 'loadedVoteCircuits');
-    	component_subscribe($$self, loadedVoteCircuits, $$value => $$invalidate(7, $loadedVoteCircuits = $$value));
+    	component_subscribe($$self, loadedVoteCircuits, $$value => $$invalidate(11, $loadedVoteCircuits = $$value));
     	let { $$slots: slots = {}, $$scope } = $$props;
     	validate_slots('EditorMenu', slots, []);
+    	let openRenameModal = false;
+    	let newCircuitName = "";
     	let selectedCircuitId;
     	let formattedCircuits;
     	Client$1.socket.getVoteCircuits();
@@ -20181,12 +20401,28 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     			state: {
     				icon: "assets/images/editorCircuitActions/saved.png",
     				text: isInCampaign
-    				? "In campaing"
+    				? "In campaign"
     				: isInVote
     					? "In vote"
     					: circuit.runs.length > 0 ? "Validated" : null
     			}
     		};
+    	}
+
+    	function renameSelectedCircuit() {
+    		if (!selectedCircuit) {
+    			set_store_value(infoError, $infoError = "You did not select a circuit", $infoError);
+    			return false;
+    		}
+
+    		if (!newCircuitName || newCircuitName.trim().length === 0) {
+    			set_store_value(infoError, $infoError = "Please enter a valid name", $infoError);
+    			return false;
+    		}
+
+    		Client$1.socket.renameEditorCircuit(selectedCircuitId, newCircuitName);
+    		$$invalidate(1, openRenameModal = false);
+    		return true;
     	}
 
     	function selectCircuit(id) {
@@ -20226,6 +20462,17 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     		Client$1.editor.initialize(selectedCircuit);
     	}
 
+    	Client$1.svelte.updateEditorCircuitRenamed = function ({ retError, retInfo }) {
+    		if (retError) {
+    			set_store_value(infoError, $infoError = retError, $infoError);
+    		} else {
+    			set_store_value(infoInfo, $infoInfo = retInfo, $infoInfo);
+    			let tempLoadedEditorCircuits = [...$loadedEditorCircuits];
+    			tempLoadedEditorCircuits.find(circuit => circuit._id == selectedCircuitId).name = newCircuitName;
+    			Client$1.svelte.updateLoadedEditorCircuits(tempLoadedEditorCircuits);
+    		}
+    	};
+
     	Client$1.svelte.updateEditorCircuitCreated = function ({ retError, retInfo, newEditorCircuit }) {
     		if (retError) {
     			set_store_value(infoError, $infoError = retError, $infoError);
@@ -20247,15 +20494,6 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     		}
     	};
 
-    	Client$1.svelte.updateLoadedEditorCircuits = function (editorCircuits) {
-    		if (!editorCircuits) {
-    			return;
-    		}
-
-    		set_store_value(loadedEditorCircuits, $loadedEditorCircuits = editorCircuits.sort((a, b) => b.creationDate - a.creationDate), $loadedEditorCircuits);
-    	};
-
-    	Client$1.svelte.updateLoadedEditorCircuits($passedData.editorCircuits);
     	const writable_props = [];
 
     	Object.keys($$props).forEach(key => {
@@ -20268,7 +20506,23 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     	}
 
     	const select_handler = ({ detail }) => selectCircuit(detail.id);
-    	const click_handler = confirmThis => confirmThis(deleteEditorCircuit);
+
+    	const click_handler = () => {
+    		$$invalidate(2, newCircuitName = selectedCircuit.name);
+    		$$invalidate(1, openRenameModal = true);
+    	};
+
+    	const click_handler_1 = confirmThis => confirmThis(deleteEditorCircuit);
+
+    	function pointerzinput_value_binding(value) {
+    		newCircuitName = value;
+    		$$invalidate(2, newCircuitName);
+    	}
+
+    	function pointerzmodal_showDialog_binding(value) {
+    		openRenameModal = value;
+    		$$invalidate(1, openRenameModal);
+    	}
 
     	$$self.$capture_state = () => ({
     		fly,
@@ -20278,7 +20532,6 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     		loadedEditorCircuits,
     		loadedCircuits,
     		loadedVoteCircuits,
-    		passedData,
     		infoError,
     		infoInfo,
     		PointerzConfirm,
@@ -20288,16 +20541,20 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     		SelectionGrid,
     		ParametersButtons,
     		OfflineRedirect,
+    		PointerzModal,
+    		PointerzInput,
     		defaultNewCircuitName,
+    		openRenameModal,
+    		newCircuitName,
     		selectedCircuitId,
     		formattedCircuits,
     		formatCircuitStats,
+    		renameSelectedCircuit,
     		selectCircuit,
     		createNewCircuit,
     		deleteEditorCircuit,
     		editSelectedEditorCircuit,
     		selectedCircuit,
-    		$passedData,
     		$loadedEditorCircuits,
     		$infoInfo,
     		$infoError,
@@ -20306,9 +20563,11 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     	});
 
     	$$self.$inject_state = $$props => {
+    		if ('openRenameModal' in $$props) $$invalidate(1, openRenameModal = $$props.openRenameModal);
+    		if ('newCircuitName' in $$props) $$invalidate(2, newCircuitName = $$props.newCircuitName);
     		if ('selectedCircuitId' in $$props) $$invalidate(0, selectedCircuitId = $$props.selectedCircuitId);
-    		if ('formattedCircuits' in $$props) $$invalidate(1, formattedCircuits = $$props.formattedCircuits);
-    		if ('selectedCircuit' in $$props) selectedCircuit = $$props.selectedCircuit;
+    		if ('formattedCircuits' in $$props) $$invalidate(3, formattedCircuits = $$props.formattedCircuits);
+    		if ('selectedCircuit' in $$props) $$invalidate(4, selectedCircuit = $$props.selectedCircuit);
     	};
 
     	if ($$props && "$$inject" in $$props) {
@@ -20316,12 +20575,12 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     	}
 
     	$$self.$$.update = () => {
-    		if ($$self.$$.dirty & /*$loadedEditorCircuits, selectedCircuitId*/ 65) {
-    			selectedCircuit = $loadedEditorCircuits.find(circuit => circuit._id == selectedCircuitId);
+    		if ($$self.$$.dirty & /*$loadedEditorCircuits, selectedCircuitId*/ 1025) {
+    			$$invalidate(4, selectedCircuit = $loadedEditorCircuits.find(circuit => circuit._id == selectedCircuitId));
     		}
 
-    		if ($$self.$$.dirty & /*$loadedEditorCircuits, $loadedVoteCircuits*/ 192) {
-    			$$invalidate(1, formattedCircuits = $loadedEditorCircuits.map(circuit => ({
+    		if ($$self.$$.dirty & /*$loadedEditorCircuits, $loadedVoteCircuits*/ 3072) {
+    			$$invalidate(3, formattedCircuits = $loadedEditorCircuits.map(circuit => ({
     				...circuit,
     				name: circuit.name,
     				stats: formatCircuitStats(circuit),
@@ -20333,7 +20592,11 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
 
     	return [
     		selectedCircuitId,
+    		openRenameModal,
+    		newCircuitName,
     		formattedCircuits,
+    		selectedCircuit,
+    		renameSelectedCircuit,
     		selectCircuit,
     		createNewCircuit,
     		deleteEditorCircuit,
@@ -20342,7 +20605,10 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     		$loadedVoteCircuits,
     		selectiongrid_selectedId_binding,
     		select_handler,
-    		click_handler
+    		click_handler,
+    		click_handler_1,
+    		pointerzinput_value_binding,
+    		pointerzmodal_showDialog_binding
     	];
     }
 
@@ -30824,7 +31090,7 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     /* src\client\svelte\pages\CircuitVote.svelte generated by Svelte v3.59.2 */
     const file$1 = "src\\client\\svelte\\pages\\CircuitVote.svelte";
 
-    // (121:10) {:else}
+    // (115:10) {:else}
     function create_else_block_1(ctx) {
     	let div;
 
@@ -30833,7 +31099,7 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     			div = element("div");
     			div.textContent = "Select a circuit to view actions";
     			attr_dev(div, "class", "no-selection svelte-nubvo1");
-    			add_location(div, file$1, 121, 12, 3936);
+    			add_location(div, file$1, 115, 12, 3884);
     		},
     		m: function mount(target, anchor) {
     			insert_dev(target, div, anchor);
@@ -30850,14 +31116,14 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     		block,
     		id: create_else_block_1.name,
     		type: "else",
-    		source: "(121:10) {:else}",
+    		source: "(115:10) {:else}",
     		ctx
     	});
 
     	return block;
     }
 
-    // (91:10) {#if selectedCircuitId}
+    // (85:10) {#if selectedCircuitId}
     function create_if_block(ctx) {
     	let div;
     	let pointerzbutton;
@@ -30898,7 +31164,7 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     			t = space();
     			if_block.c();
     			attr_dev(div, "class", "actions-container svelte-nubvo1");
-    			add_location(div, file$1, 91, 12, 2788);
+    			add_location(div, file$1, 85, 12, 2736);
     		},
     		m: function mount(target, anchor) {
     			insert_dev(target, div, anchor);
@@ -30973,14 +31239,14 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     		block,
     		id: create_if_block.name,
     		type: "if",
-    		source: "(91:10) {#if selectedCircuitId}",
+    		source: "(85:10) {#if selectedCircuitId}",
     		ctx
     	});
 
     	return block;
     }
 
-    // (93:14) <PointerzButton                  buttonColor="darkBlue"                  important                  noMargins                  imagePath="assets/images/circuitVote/raceTest.png"                  on:click={trySelectedCircuit}>
+    // (87:14) <PointerzButton                  buttonColor="darkBlue"                  important                  noMargins                  imagePath="assets/images/circuitVote/raceTest.png"                  on:click={trySelectedCircuit}>
     function create_default_slot_4(ctx) {
     	let t;
 
@@ -31000,14 +31266,14 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     		block,
     		id: create_default_slot_4.name,
     		type: "slot",
-    		source: "(93:14) <PointerzButton                  buttonColor=\\\"darkBlue\\\"                  important                  noMargins                  imagePath=\\\"assets/images/circuitVote/raceTest.png\\\"                  on:click={trySelectedCircuit}>",
+    		source: "(87:14) <PointerzButton                  buttonColor=\\\"darkBlue\\\"                  important                  noMargins                  imagePath=\\\"assets/images/circuitVote/raceTest.png\\\"                  on:click={trySelectedCircuit}>",
     		ctx
     	});
 
     	return block;
     }
 
-    // (110:14) {:else}
+    // (104:14) {:else}
     function create_else_block(ctx) {
     	let pointerzbutton;
     	let current;
@@ -31061,14 +31327,14 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     		block,
     		id: create_else_block.name,
     		type: "else",
-    		source: "(110:14) {:else}",
+    		source: "(104:14) {:else}",
     		ctx
     	});
 
     	return block;
     }
 
-    // (101:14) {#if selectedCircuit.isUpvotedByUser}
+    // (95:14) {#if selectedCircuit.isUpvotedByUser}
     function create_if_block_1(ctx) {
     	let pointerzbutton;
     	let current;
@@ -31122,14 +31388,14 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     		block,
     		id: create_if_block_1.name,
     		type: "if",
-    		source: "(101:14) {#if selectedCircuit.isUpvotedByUser}",
+    		source: "(95:14) {#if selectedCircuit.isUpvotedByUser}",
     		ctx
     	});
 
     	return block;
     }
 
-    // (111:16) <PointerzButton                    buttonColor="darkGreen"                    important                    noMargins                    imagePath="assets/images/circuitVote/upvote.png"                    on:click={upvoteSelectedCircuit}>
+    // (105:16) <PointerzButton                    buttonColor="darkGreen"                    important                    noMargins                    imagePath="assets/images/circuitVote/upvote.png"                    on:click={upvoteSelectedCircuit}>
     function create_default_slot_3(ctx) {
     	let t;
 
@@ -31149,14 +31415,14 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     		block,
     		id: create_default_slot_3.name,
     		type: "slot",
-    		source: "(111:16) <PointerzButton                    buttonColor=\\\"darkGreen\\\"                    important                    noMargins                    imagePath=\\\"assets/images/circuitVote/upvote.png\\\"                    on:click={upvoteSelectedCircuit}>",
+    		source: "(105:16) <PointerzButton                    buttonColor=\\\"darkGreen\\\"                    important                    noMargins                    imagePath=\\\"assets/images/circuitVote/upvote.png\\\"                    on:click={upvoteSelectedCircuit}>",
     		ctx
     	});
 
     	return block;
     }
 
-    // (102:16) <PointerzButton                    buttonColor="darkRed"                    important                    noMargins                    imagePath="assets/images/circuitVote/downvote.png"                    on:click={upvoteSelectedCircuit}>
+    // (96:16) <PointerzButton                    buttonColor="darkRed"                    important                    noMargins                    imagePath="assets/images/circuitVote/downvote.png"                    on:click={upvoteSelectedCircuit}>
     function create_default_slot_2(ctx) {
     	let t;
 
@@ -31176,14 +31442,14 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     		block,
     		id: create_default_slot_2.name,
     		type: "slot",
-    		source: "(102:16) <PointerzButton                    buttonColor=\\\"darkRed\\\"                    important                    noMargins                    imagePath=\\\"assets/images/circuitVote/downvote.png\\\"                    on:click={upvoteSelectedCircuit}>",
+    		source: "(96:16) <PointerzButton                    buttonColor=\\\"darkRed\\\"                    important                    noMargins                    imagePath=\\\"assets/images/circuitVote/downvote.png\\\"                    on:click={upvoteSelectedCircuit}>",
     		ctx
     	});
 
     	return block;
     }
 
-    // (87:8) <Cell            title="Circuit Actions"            color="darkBlue"            titleImagePath="assets/images/menu/gear.png">
+    // (81:8) <Cell            title="Circuit Actions"            color="darkBlue"            titleImagePath="assets/images/menu/gear.png">
     function create_default_slot_1(ctx) {
     	let current_block_type_index;
     	let if_block;
@@ -31256,14 +31522,14 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     		block,
     		id: create_default_slot_1.name,
     		type: "slot",
-    		source: "(87:8) <Cell            title=\\\"Circuit Actions\\\"            color=\\\"darkBlue\\\"            titleImagePath=\\\"assets/images/menu/gear.png\\\">",
+    		source: "(81:8) <Cell            title=\\\"Circuit Actions\\\"            color=\\\"darkBlue\\\"            titleImagePath=\\\"assets/images/menu/gear.png\\\">",
     		ctx
     	});
 
     	return block;
     }
 
-    // (63:0) <AppLayout>
+    // (57:0) <AppLayout>
     function create_default_slot(ctx) {
     	let offlineredirect;
     	let t0;
@@ -31336,13 +31602,13 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     			div1 = element("div");
     			create_component(cell.$$.fragment);
     			attr_dev(div0, "class", "circuits-column");
-    			add_location(div0, file$1, 71, 6, 2069);
+    			add_location(div0, file$1, 65, 6, 2017);
     			attr_dev(div1, "class", "details-column");
-    			add_location(div1, file$1, 85, 6, 2576);
+    			add_location(div1, file$1, 79, 6, 2524);
     			attr_dev(div2, "class", "content-grid svelte-nubvo1");
-    			add_location(div2, file$1, 70, 4, 2035);
+    			add_location(div2, file$1, 64, 4, 1983);
     			attr_dev(div3, "class", "container svelte-nubvo1");
-    			add_location(div3, file$1, 64, 2, 1870);
+    			add_location(div3, file$1, 58, 2, 1818);
     		},
     		m: function mount(target, anchor) {
     			mount_component(offlineredirect, target, anchor);
@@ -31417,7 +31683,7 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     		block,
     		id: create_default_slot.name,
     		type: "slot",
-    		source: "(63:0) <AppLayout>",
+    		source: "(57:0) <AppLayout>",
     		ctx
     	});
 
@@ -31557,9 +31823,7 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     		slide,
     		Client: Client$1,
     		loadedVoteCircuits,
-    		passedData,
     		infoError,
-    		userModel,
     		OfflineRedirect,
     		PointerzButton,
     		AppLayout,
