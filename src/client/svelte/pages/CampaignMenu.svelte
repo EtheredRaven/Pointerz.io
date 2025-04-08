@@ -9,7 +9,9 @@
   import ParametersButtons from "../components/ui/ParametersButtons.svelte";
   import OfflineRedirect from "../components/ui/OfflineRedirect.svelte";
   import SelectionGrid from "../components/ui/SelectionGrid.svelte";
+  import { onMount, onDestroy } from "svelte";
 
+  // Format circuit stats for display
   function formatCircuitStats(circuit) {
     return {
       ranking: {
@@ -53,7 +55,7 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     };
   }
 
-  let selectedCircuitIndex = -1; // The selected circuit
+  let selectedCircuitIndex = -1;
   let recordsTableColumns = [
     {
       name: "formattedRanking",
@@ -71,23 +73,107 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     },
   ];
 
-  // Update the selected circuit index
+  // Weekly circuit tracking
+  let campaignCircuits = [];
+  let weeklyCircuits = [];
+  let currentWeeklyCircuit = null;
+  let remainingTime = "";
+  let timeInterval;
+
   function selectCircuit(i) {
     Client.phaser.playSound("buttonSelection");
     selectedCircuitIndex = i;
   }
 
-  // Join the selected circuit
   function joinRace() {
-    if (Client.race.user) {
-      // If there is already a current race going on, it is not possible
-      return;
-    }
-
+    if (Client.race.user) return;
     Client.pushRoute("/race");
-
-    // Ask to the server the race data
     Client.socket.emitJoinNewRoom($loadedCircuits[selectedCircuitIndex]._id);
+  }
+
+  function getWeekNumber(date) {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
+    const week1 = new Date(d.getFullYear(), 0, 4);
+    return Math.ceil(
+      ((d - week1) / 86400000 + 3 + ((week1.getDay() + 6) % 7)) / 7
+    );
+  }
+
+  function formatWeekCircuitNumber(circuit) {
+    if (!circuit.campaignPublicationTime) return null;
+    const date = new Date(circuit.campaignPublicationTime);
+    return {
+      year: date.getFullYear(),
+      week: getWeekNumber(date),
+    };
+  }
+
+  function isCurrentWeekly(circuit) {
+    if (
+      !circuit.campaignPublicationTime ||
+      circuit.campaignPublicationTime <= 0
+    )
+      return false;
+
+    // Find the most recent circuit (highest timestamp)
+    return circuit === currentWeeklyCircuit;
+  }
+
+  function getTimeUntilNextMonday() {
+    const now = new Date();
+    const nextMonday = new Date();
+    nextMonday.setDate(now.getDate() + ((8 - now.getDay()) % 7));
+    nextMonday.setHours(0, 0, 0, 0);
+
+    const diff = nextMonday - now;
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+
+    return `${days}d ${hours}h ${minutes}m`;
+  }
+
+  function updateRemainingTime() {
+    remainingTime = getTimeUntilNextMonday();
+  }
+
+  onMount(() => {
+    // Start timer to update remaining time
+    updateRemainingTime();
+    timeInterval = setInterval(updateRemainingTime, 60000); // Update every minute
+  });
+
+  onDestroy(() => {
+    // Clean up timer
+    if (timeInterval) clearInterval(timeInterval);
+  });
+
+  $: {
+    // Split circuits into campaign and weekly, sorting weekly by publication time (newest first)
+    const separated = $loadedCircuits.reduce(
+      (acc, circuit, index) => {
+        if (!circuit._creatorId && !circuit.creationDate) {
+          acc.campaignCircuits.push({ ...circuit, index });
+        } else {
+          acc.weeklyCircuits.push({ ...circuit, index });
+        }
+        return acc;
+      },
+      { campaignCircuits: [], weeklyCircuits: [] }
+    );
+
+    // Sort weekly circuits by publication time (newest first)
+    separated.weeklyCircuits.sort((a, b) => {
+      return b.campaignPublicationTime - a.campaignPublicationTime;
+    });
+
+    campaignCircuits = separated.campaignCircuits;
+    weeklyCircuits = separated.weeklyCircuits;
+
+    // Find the current weekly circuit (most recent)
+    currentWeeklyCircuit = weeklyCircuits.length > 0 ? weeklyCircuits[0] : null;
   }
 </script>
 
@@ -102,19 +188,42 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     <div class="content-grid">
       <div class="circuits-column">
         <SelectionGrid
-          items={$loadedCircuits.map((circuit, i) => ({
+          items={campaignCircuits.map((circuit) => ({
             ...circuit,
-            number: i + 1,
-            name: circuit.name || `Circuit ${i + 1}`,
+            number: circuit.index + 1,
+            name: circuit.name || `Circuit ${circuit.index + 1}`,
             stats: formatCircuitStats(circuit),
-            id: i,
+            id: circuit.index,
           }))}
           bind:selectedId={selectedCircuitIndex}
           title="Campaign Circuits"
           titleColor="darkOrange"
           titleIcon="assets/images/menu/circuit.png"
-          getItemId={(item) => item.number - 1}
-          on:select={({ detail }) => selectCircuit(detail.item.number - 1)} />
+          getItemId={(item) => item.index}
+          on:select={({ detail }) => selectCircuit(detail.item.index)} />
+
+        {#if weeklyCircuits.length > 0}
+          <div class="weekly-circuits">
+            <SelectionGrid
+              items={weeklyCircuits.map((circuit) => ({
+                ...circuit,
+                number: formatWeekCircuitNumber(circuit),
+                name: circuit.name || `Circuit ${circuit.index + 1}`,
+                stats: formatCircuitStats(circuit),
+                id: circuit.index,
+                highlight: isCurrentWeekly(circuit),
+                customStyle: isCurrentWeekly(circuit)
+                  ? "border: 2px solid var(--yellow-color);"
+                  : "",
+              }))}
+              bind:selectedId={selectedCircuitIndex}
+              title={`Weekly Circuits ${currentWeeklyCircuit ? "- Next circuit in " + remainingTime : ""}`}
+              titleColor="darkOrange"
+              titleIcon="assets/images/menu/calendar.png"
+              getItemId={(item) => item.index}
+              on:select={({ detail }) => selectCircuit(detail.item.index)} />
+          </div>
+        {/if}
       </div>
 
       <div class="details-column">
@@ -207,6 +316,10 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     font-size: 16px;
   }
 
+  .weekly-circuits {
+    margin-top: 24px;
+  }
+
   @keyframes bounce {
     0%,
     100% {
@@ -214,12 +327,6 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     }
     50% {
       transform: translateX(5px);
-    }
-  }
-
-  @media (max-width: 1200px) {
-    .content-grid {
-      grid-template-columns: 1fr;
     }
   }
 
@@ -257,8 +364,25 @@ M8,16v-4h8v12C11.582,24,8,20.414,8,16z M56,16c0,4.414-3.582,8-8,8V12h8V16z" />`,
     margin-top: 16px;
   }
 
-  /* SVG animations */
+  .circuits-column {
+    overflow-y: auto;
+    max-height: calc(100vh - 348px);
+    scrollbar-width: thin;
+    scrollbar-color: var(--dark-grey-color) transparent;
+    border-radius: 8px;
+  }
 
+  @media (max-width: 1200px) {
+    .content-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .circuits-column {
+      max-height: none;
+    }
+  }
+
+  /* SVG animations */
   @keyframes color_anim {
     0% {
       fill: var(--almost-white-color);

@@ -1,8 +1,7 @@
 <script>
-  import { infoInfo, infoError, loggedIn } from "../misc/store";
+  import { loggedIn } from "../misc/store";
   import { css } from "../misc/css";
   import { fade } from "svelte/transition";
-  import ClosableDislay from "../components/ui/ClosableDisplay.svelte";
   import KoinosWallet from "../components/ui/KoinosWallet.svelte";
 
   let appMargin = Math.max(

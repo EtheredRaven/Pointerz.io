@@ -24,7 +24,6 @@ module.exports = function (Client) {
   });
 
   Client.registerEvent("editor_circuit_renamed", (data) => {
-    console.log(data);
     Client.svelte.updateEditorCircuitRenamed(data);
   });
 

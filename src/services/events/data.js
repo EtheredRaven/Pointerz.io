@@ -1,7 +1,7 @@
 module.exports = function (Server, socket) {
   // Send the circuit records to the user
   Server.registerEvent(socket, "get_circuits_records", async function () {
-    Server.assertUserIsLoggedIn(socket, true); //  A TESTER
+    Server.assertUserIsLoggedIn(socket, true);
     let ret = await Server.getCircuitsAndRecords(socket, socket.player._id);
     Server.emitCircuitsAndRecords(socket, ret.circuits, ret.records);
   });

@@ -138156,7 +138156,6 @@ module.exports = function (Client) {
   });
 
   Client.registerEvent("editor_circuit_renamed", (data) => {
-    console.log(data);
     Client.svelte.updateEditorCircuitRenamed(data);
   });
 
@@ -138299,6 +138298,7 @@ module.exports = function (Client) {
 
   Client.registerEvent("logged_in", (data) => {
     Client.svelte.loggedIn(data);
+    console.log(data);
     Client.svelte.updateUserModel(data.user);
   });
 

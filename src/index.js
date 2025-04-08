@@ -11,6 +11,7 @@ require("./routes")(Server);
 
 require("./client/js/crypto/contracts")(Server);
 require("./services/blockchainListener")(Server);
+require("./services/weeklyCircuitPublishing")(Server);
 
 require("./services/controllers/roomController")(Server);
 require("./services/controllers/dataController")(Server);

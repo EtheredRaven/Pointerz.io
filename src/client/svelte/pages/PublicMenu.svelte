@@ -51,7 +51,6 @@
   // Indeed logged in, server sent back the circuits and the records
   Client.svelte.loggedIn = function ({
     retError,
-    retInfo,
     circuits,
     editorCircuits,
     voteCircuits,

@@ -108,6 +108,26 @@ Client.svelte.updateLoadedCampaignCircuits = function (circuits, records) {
   loadedCircuits.set(updatedCircuits);
 };
 
+Client.svelte.updateUserModel = function (newUserModel) {
+  if (!newUserModel) {
+    return;
+  }
+
+  userModel.set(newUserModel);
+
+  // Update visualizer NFTs if function exists and user has NFTs
+  if (Client.phaser.updateVisualiserNFTs && newUserModel.nfts) {
+    const selectedNFTs = newUserModel.nfts.filter((nft) => nft.nftSelected);
+    Client.phaser.updateVisualiserNFTs(selectedNFTs);
+  }
+
+  // Handle crypto account unlock
+  const ret = Client.unlockCryptoAccount(newUserModel);
+  if (ret?.retError) {
+    infoError.set(ret.retError);
+  }
+};
+
 export { playerNameMaxChar };
 export { playerMail };
 export { playerPassword };

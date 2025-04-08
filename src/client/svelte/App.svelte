@@ -12,19 +12,6 @@
     $infoInfo = info;
   };
 
-  Client.svelte.updateUserModel = function (newUserModel) {
-    $userModel = newUserModel;
-    Client.phaser.updateVisualiserNFTs &&
-      $userModel.nfts &&
-      Client.phaser.updateVisualiserNFTs(
-        $userModel.nfts.filter((nft) => nft.nftSelected)
-      );
-    let ret = Client.unlockCryptoAccount($userModel);
-    if (ret && ret.retError) {
-      $infoError = retError;
-    }
-  };
-
   Client.svelte.getUserModel = function () {
     return $userModel;
   };

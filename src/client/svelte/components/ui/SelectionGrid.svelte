@@ -40,7 +40,16 @@
           <div class="item-content">
             <div class="item-main">
               {#if item.number !== undefined}
-                <div class="item-number">{item.number}</div>
+                <div class="item-number">
+                  {#if typeof item.number === "object" && item.number !== null}
+                    <div class="week-number">
+                      <span class="year">{item.number.year}</span>
+                      <span class="week">W{item.number.week}</span>
+                    </div>
+                  {:else}
+                    {item.number}
+                  {/if}
+                </div>
               {/if}
               <div class="item-info">
                 <div class="item-name">
@@ -196,5 +205,24 @@
     width: 32px;
     height: 32px;
     opacity: 0.7;
+  }
+
+  .week-number {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    line-height: 1;
+  }
+
+  .year {
+    font-size: 16px;
+    color: var(--orange-color);
+    font-family: "virgo";
+  }
+
+  .week {
+    font-size: 20px;
+    color: var(--orange-color);
+    font-family: "virgo";
   }
 </style>

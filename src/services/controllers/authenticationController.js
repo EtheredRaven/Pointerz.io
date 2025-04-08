@@ -79,17 +79,6 @@ module.exports = function (Server) {
       "Log in"
     );
 
-    function getReturnData() {
-      return {
-        circuits: socket.loadedCircuits,
-        editorCircuits: socket.loadedEditorCircuits,
-        voteCircuits: socket.loadedVoteCircuits,
-        records: socket.loadedRecords,
-        user: socket.userModel,
-        anonymous: anonymous,
-      };
-    }
-
     // If anonymous user = new player testing the game
     if (anonymous) {
       // We create a basic user model but he is not logged in
@@ -102,12 +91,15 @@ module.exports = function (Server) {
 
       // Load the circuits and there is no records for non-logged in user
       let ret = await Server.CircuitModel.getCircuits();
-      socket.loadedCircuits = ret.circuits;
-      socket.loadedRecords = [];
-      socket.loadedEditorCircuits = [];
-      socket.loadedVoteCircuits = [];
 
-      emitReturnEvent({ data: getReturnData() });
+      emitReturnEvent({
+        data: {
+          circuits: ret.circuits,
+          records: [],
+          user: socket.userModel,
+          anonymous: anonymous,
+        },
+      });
     } else {
       // Check if this user exists
       let userModel = await Server.UserModel.findOne({ username: playerName });
@@ -137,12 +129,17 @@ module.exports = function (Server) {
             Server.CircuitModel.getCircuits(userModel._id, [], false),
           ];
           let res = await Promise.all(promises);
-          socket.loadedCircuits = res[0].circuits;
-          socket.loadedRecords = res[0].records;
-          socket.loadedEditorCircuits = res[1];
-          socket.loadedVoteCircuits = res[2].circuits;
 
-          emitReturnEvent({ data: getReturnData() });
+          emitReturnEvent({
+            data: {
+              circuits: res[0].circuits,
+              records: res[0].records,
+              editorCircuits: res[1],
+              voteCircuits: res[2].circuits,
+              user: socket.userModel,
+              anonymous: anonymous,
+            },
+          });
         }
       });
     }

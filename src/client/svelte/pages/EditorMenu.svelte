@@ -37,6 +37,7 @@
   }));
 
   Client.socket.getVoteCircuits();
+  Client.socket.getEditorCircuits();
 
   function formatCircuitStats(circuit) {
     const isInVote = $loadedVoteCircuits.some((c) => c._id === circuit._id);

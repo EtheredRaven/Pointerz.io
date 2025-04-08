@@ -234,7 +234,6 @@
   .animatingHover:before {
     top: 0;
     left: -100%;
-    z-index: 1; /* Ensure hover effect is above button content */
   }
 
   .animatingHover:hover:before,
@@ -245,7 +244,6 @@
   /* Add this to keep content visible */
   button > p {
     position: relative;
-    z-index: 2;
   }
 
   button:active {

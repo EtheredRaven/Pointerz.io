@@ -202,7 +202,11 @@ module.exports = function (Server, circuitModel) {
     });
 
     let circuits = circuitModel.aggregate(req);
-    let records = circuitModel.getUserRecords(userId, circuitIds);
+    let records = circuitModel.getUserRecords(
+      userId,
+      circuitIds,
+      getCampaignCircuits
+    );
 
     let ret = await Promise.all([circuits, records]);
     return {
@@ -245,7 +249,11 @@ module.exports = function (Server, circuitModel) {
   };
 
   // Get the records for a user and a set of circuits (if none, then it is all circuits)
-  circuitModel.getUserRecords = async function (userId, circuitIds = []) {
+  circuitModel.getUserRecords = async function (
+    userId,
+    circuitIds = [],
+    getCampaignCircuits = true
+  ) {
     // Format the ids
     userId = circuitModel.toObjectId(userId);
     circuitIds = circuitModel.toObjectId(circuitIds);
@@ -255,6 +263,16 @@ module.exports = function (Server, circuitModel) {
     if (circuitIds.length > 0) {
       req.push({ $match: { _id: { $in: circuitIds } } });
     }
+
+    let match = {
+      $match: {},
+    };
+    circuitIds.length > 0
+      ? (match.$match._id = { $in: circuitIds })
+      : (match.$match.campaignPublicationTime = getCampaignCircuits
+          ? { $gte: 0 }
+          : { $lte: -1 });
+    req.push(match);
 
     // Sort the records/circuits by publication time
     req.push({
