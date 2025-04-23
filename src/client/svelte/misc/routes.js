@@ -5,6 +5,8 @@ import RaceOverlay from "../pages/RaceOverlay.svelte";
 import EditorMenu from "../pages/EditorMenu.svelte";
 import EditorOverlay from "../pages/EditorOverlay.svelte";
 import CircuitVote from "../pages/CircuitVote.svelte";
+import NftManager from "../pages/NftManager.svelte";
+
 import { push } from "svelte-spa-router";
 
 const routes = {
@@ -15,6 +17,7 @@ const routes = {
   "/editormenu": EditorMenu,
   "/editor": EditorOverlay,
   "/circuitvote": CircuitVote,
+  "/nftmanager": NftManager,
 };
 
 function playTheRightSoundtrack(route) {

@@ -25,3 +25,5 @@ require("./services/emitters")(Server);
 require("./services/events")(Server);
 
 require("./utils/socketUtils")(Server);
+
+require("./services/nftManager")(Server);

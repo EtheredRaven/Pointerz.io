@@ -131481,11 +131481,11 @@ Constants.defaultNFTs = {
 };
 
 Constants.nftRarities = {
-  UNIQUE: "0",
-  LEGENDARY: "1",
-  EPIC: "2",
-  RARE: "3",
-  COMMON: "4",
+  UNIQUE: "1",
+  LEGENDARY: "2",
+  EPIC: "3",
+  RARE: "4",
+  COMMON: "5",
 };
 
 Constants.nftRarityInfo = {
@@ -138122,7 +138122,7 @@ require("./crypto")(Client); // The crypto functions
 require("./utils")(Client); // The client utils functions
 require("./socket")(Client); // The communication with the server
 
-},{"./crypto":550,"./game/controllers/editorController":552,"./game/controllers/raceController":553,"./game/logic/Constants":554,"./game/logic/Functions":555,"./game/phaser":593,"./game/phaser/spaceshipModification":605,"./socket":609,"./utils":615}],607:[function(require,module,exports){
+},{"./crypto":550,"./game/controllers/editorController":552,"./game/controllers/raceController":553,"./game/logic/Constants":554,"./game/logic/Functions":555,"./game/phaser":593,"./game/phaser/spaceshipModification":605,"./socket":609,"./utils":616}],607:[function(require,module,exports){
 module.exports = function (Client) {
   Client.socket.emitLinkKoinosAccount = function (address, accountType) {
     Client.socket.emit("link_koinos_account", address, accountType);
@@ -138205,6 +138205,7 @@ module.exports = function (Client) {
   require("./editor")(Client);
   require("./vote")(Client);
   require("./crypto")(Client);
+  require("./nft")(Client);
 
   // Disconnection
   window.addEventListener("beforeunload", function (event) {
@@ -138216,7 +138217,7 @@ module.exports = function (Client) {
   });
 };
 
-},{"./crypto":607,"./editor":608,"./menu":610,"./race":611,"./user":612,"./vote":613}],610:[function(require,module,exports){
+},{"./crypto":607,"./editor":608,"./menu":610,"./nft":611,"./race":612,"./user":613,"./vote":614}],610:[function(require,module,exports){
 module.exports = function (Client) {
   // Update the menu display
   Client.registerEvent("circuit_records", (circuits, records) => {
@@ -138238,6 +138239,21 @@ module.exports = function (Client) {
 };
 
 },{}],611:[function(require,module,exports){
+module.exports = function (Client) {
+  Client.socket.getNfts = function () {
+    Client.socket.emit("getNfts");
+  };
+
+  Client.socket.createNewNfts = function (nftData) {
+    Client.socket.emit("createNewNfts", nftData);
+  };
+
+  Client.socket.deleteNft = function (nftId) {
+    Client.socket.emit("deleteNft", nftId);
+  };
+};
+
+},{}],612:[function(require,module,exports){
 module.exports = function (Client) {
   // Getting the info for the new race and init displaying and logic
   Client.registerEvent(
@@ -138290,7 +138306,7 @@ module.exports = function (Client) {
   };
 };
 
-},{}],612:[function(require,module,exports){
+},{}],613:[function(require,module,exports){
 module.exports = function (Client) {
   Client.registerEvent("signed_in", (data) => {
     Client.svelte.signedIn(data);
@@ -138319,7 +138335,7 @@ module.exports = function (Client) {
   };
 };
 
-},{}],613:[function(require,module,exports){
+},{}],614:[function(require,module,exports){
 module.exports = function (Client) {
   Client.socket.emitUpvoteCircuit = function (selectedCircuitId) {
     Client.socket.emit("upvote_circuit", selectedCircuitId);
@@ -138339,7 +138355,7 @@ module.exports = function (Client) {
   });
 };
 
-},{}],614:[function(require,module,exports){
+},{}],615:[function(require,module,exports){
 const Server = require("socket.io");
 
 module.exports = function (Client) {
@@ -138355,13 +138371,13 @@ module.exports = function (Client) {
   };
 };
 
-},{"socket.io":532}],615:[function(require,module,exports){
+},{"socket.io":532}],616:[function(require,module,exports){
 module.exports = function (Client) {
   require("./displayUtils")(Client);
   require("./socketUtils")(Client);
 };
 
-},{"./displayUtils":614,"./socketUtils":616}],616:[function(require,module,exports){
+},{"./displayUtils":615,"./socketUtils":617}],617:[function(require,module,exports){
 module.exports = function (Client) {
   Client.registerEvent = function (eventName, cb) {
     Client.socket.on(eventName, function (...args) {

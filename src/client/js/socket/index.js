@@ -8,6 +8,7 @@ module.exports = function (Client) {
   require("./editor")(Client);
   require("./vote")(Client);
   require("./crypto")(Client);
+  require("./nft")(Client);
 
   // Disconnection
   window.addEventListener("beforeunload", function (event) {

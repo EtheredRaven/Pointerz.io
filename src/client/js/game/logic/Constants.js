@@ -238,11 +238,11 @@ Constants.defaultNFTs = {
 };
 
 Constants.nftRarities = {
-  UNIQUE: "0",
-  LEGENDARY: "1",
-  EPIC: "2",
-  RARE: "3",
-  COMMON: "4",
+  UNIQUE: "1",
+  LEGENDARY: "2",
+  EPIC: "3",
+  RARE: "4",
+  COMMON: "5",
 };
 
 Constants.nftRarityInfo = {

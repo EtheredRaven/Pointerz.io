@@ -42,7 +42,7 @@ module.exports = function (Server) {
           },
           ...metadataAttributes,
         ],
-        image: `https://pointerz.io/assets/images/spaceships/${ret.nftCategory}/${ret.nftName}.png`,
+        image: `https://pointerz.io/assets/images/spaceships/${ret.nftCategory}/${ret.nftName} Display.png`,
         reference: ret.nftReference || undefined,
       };
     }
