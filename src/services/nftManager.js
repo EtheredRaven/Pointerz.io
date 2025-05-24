@@ -1,7 +1,7 @@
 module.exports = function (Server) {
-  Server.registerEvent(Server.io, "connection", function (socket) {
+  /*Server.registerEvent(Server.io, "connection", function (socket) {
     // Get all NFTs
-    Server.registerEvent(socket, "getNfts", async function () {
+  Server.registerEvent(socket, "getNfts", async function () {
       try {
         Server.assertUserIsLoggedIn(socket);
 
@@ -125,5 +125,5 @@ module.exports = function (Server) {
         socket.emit("nftDeleted", { error: err.message });
       }
     });
-  });
+  });*/
 };

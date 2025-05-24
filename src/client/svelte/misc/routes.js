@@ -17,7 +17,7 @@ const routes = {
   "/editormenu": EditorMenu,
   "/editor": EditorOverlay,
   "/circuitvote": CircuitVote,
-  "/nftmanager": NftManager,
+  //"/nftmanager": NftManager,
 };
 
 function playTheRightSoundtrack(route) {

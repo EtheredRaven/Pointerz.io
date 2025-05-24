@@ -45,7 +45,7 @@ module.exports = function (Client) {
     MODIFY: 5,
   };
 
-  Client.phaser.editor.DEFAULT_ZOOM = 0.9;
+  Client.phaser.editor.DEFAULT_ZOOM = 1.1;
   Client.phaser.editor.ZOOM_SPEED = 1 / 8;
   Client.phaser.editor.MAX_ZOOM = 3;
   Client.phaser.editor.MIN_ZOOM = 0.15;

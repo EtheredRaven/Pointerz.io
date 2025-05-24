@@ -5,6 +5,7 @@ module.exports = function (Client) {
     this.load.image("wheel", "assets/images/spaceships/wheel.png");
     this.load.image("thrust", "assets/images/spaceships/thrust.png");
     this.load.image("particle", "assets/images/spaceships/particle.png");
+    this.load.image("chassis", "assets/images/spaceships/chassis.png");
 
     if (!visualiser) {
       // Blocks

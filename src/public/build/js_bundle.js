@@ -131451,8 +131451,8 @@ Constants.spaceship.thrustAnchorPoint = {
 };
 Constants.spaceship.thrustScale = 0.175;
 Constants.spaceship.wheelsAnchorPoints = [
-  { x: 107, y: -40 },
-  { x: 107, y: 40 },
+  { x: 111, y: -72 },
+  { x: 111, y: 72 },
   { x: -134, y: 0 },
 ];
 
@@ -135601,6 +135601,7 @@ module.exports = function (Client) {
     this.load.image("wheel", "assets/images/spaceships/wheel.png");
     this.load.image("thrust", "assets/images/spaceships/thrust.png");
     this.load.image("particle", "assets/images/spaceships/particle.png");
+    this.load.image("chassis", "assets/images/spaceships/chassis.png");
 
     if (!visualiser) {
       // Blocks
@@ -136726,7 +136727,7 @@ module.exports = function (Client) {
     MODIFY: 5,
   };
 
-  Client.phaser.editor.DEFAULT_ZOOM = 0.9;
+  Client.phaser.editor.DEFAULT_ZOOM = 1.1;
   Client.phaser.editor.ZOOM_SPEED = 1 / 8;
   Client.phaser.editor.MAX_ZOOM = 3;
   Client.phaser.editor.MIN_ZOOM = 0.15;
@@ -137288,6 +137289,7 @@ module.exports = function (Client) {
       player.thrust.particlesEmitter.stop();
 
       // The wheels
+      let i = 0;
       player.wheels.forEach((wheel) => {
         wheel.sprite = Client.phaser.createSprite(
           {
@@ -137302,7 +137304,24 @@ module.exports = function (Client) {
           },
           phaserScene
         );
+        i == 2 && wheel.sprite.setScale(wheel.scale, wheel.scale * 1.5); // The back wheels are bigger
+        i++;
       });
+
+      // Chassis
+      player.chassis = Client.phaser.createSprite(
+        {
+          x: player.x,
+          y: player.y,
+          angle: player.angle,
+          originX: 0.5,
+          originY: 0.5,
+          name: "chassis",
+          scale: player.scale,
+          depth: Client.phaser.LAYERS_DEPTHS?.PLAYERS_THRUSTS || 0,
+        },
+        phaserScene
+      );
 
       // The real spaceship
       player.sprite = Client.phaser.createSprite(
@@ -137357,11 +137376,19 @@ module.exports = function (Client) {
     // Prepare texture loading data
     Object.entries(selectedNFTs).forEach(([category, nft]) => {
       if (!nft.isDefault) {
-        const nftKey = `nft_${nft.nftName}`;
-        const nftPath = `assets/images/spaceships/${category}/${nft.nftName}.png`;
+        let loadNft = function (nft) {
+          const nftKey = `nft_${nft.nftName}`;
+          const nftPath = `assets/images/spaceships/${category}/${nft.nftName}.png`;
+          if (!phaserScene.textures.exists(nftKey)) {
+            texturesToLoad.push({ key: nftKey, path: nftPath, category });
+          }
+        };
 
-        if (!phaserScene.textures.exists(nftKey)) {
-          texturesToLoad.push({ key: nftKey, path: nftPath, category });
+        loadNft(nft);
+        if (category == "Flame") {
+          loadNft({
+            nftName: nft.nftName.split(" ")[0] + " particle",
+          });
         }
       }
     });
@@ -137393,9 +137420,14 @@ module.exports = function (Client) {
       // Handle Flame NFT - simple texture swap
       if (!selectedNFTs.Flame.isDefault) {
         const flameKey = `nft_${selectedNFTs.Flame.nftName}`;
+        const particlesKey = `nft_${
+          selectedNFTs.Flame.nftName.split(" ")[0]
+        } particle`;
         player.thrust.sprite.setTexture(flameKey);
+        player.thrust.particlesManager.setTexture(particlesKey);
       } else {
         player.thrust.sprite.setTexture("thrust");
+        player.thrust.particlesManager.setTexture("particle");
       }
 
       // Handle Wheels NFT - simple texture swap
@@ -137437,13 +137469,17 @@ module.exports = function (Client) {
       player.currentEnvironmentType == Client.race.Constants.environments.SPACE
         ? 1
         : 0;
+
+    let isRoad =
+      player.currentEnvironmentType == Client.race.Constants.environments.ROAD
+        ? 1
+        : 0;
     player.wheels.forEach((wheel) => {
       wheel.sprite.visible = 1;
-      wheel.sprite.alpha =
-        player.currentEnvironmentType == Client.race.Constants.environments.ROAD
-          ? 1
-          : 0;
+      wheel.sprite.alpha = isRoad;
     });
+    player.chassis.visible = 1;
+    player.chassis.alpha = isRoad;
   };
 
   Client.phaser.race.updatePlayer = function (
@@ -137592,6 +137628,10 @@ module.exports = function (Client) {
         wheel.sprite.rotation = player.angle;
       }
     });
+
+    player.chassis.x = player.x;
+    player.chassis.y = player.y;
+    player.chassis.rotation = player.angle;
 
     // Random movement / scale of the thrust fire
     player.thrust.sprite.x = player.thrust.x;
@@ -137767,14 +137807,15 @@ module.exports = function (Client) {
 
   let updateWheelsTransition = function (player, isVisualiser = false) {
     // Update the wheels opactity according to the current environment
-    player.wheels.forEach((wheel) => {
-      let alpha = Math.min(wheel.sprite.alpha + 0.07, 1);
+    [...player.wheels, player.chassis].forEach((wheel) => {
+      let sprite = wheel.sprite || wheel;
+      let alpha = Math.min(sprite.alpha + 0.07, 1);
       if (
         player.currentEnvironmentType != Client.race.Constants.environments.ROAD
       ) {
-        alpha = Math.max(wheel.sprite.alpha - 0.07, 0);
+        alpha = Math.max(sprite.alpha - 0.07, 0);
       }
-      wheel.sprite.alpha = Math.min(alpha, player.sprite.alpha);
+      sprite.alpha = Math.min(alpha, player.sprite.alpha);
     });
   };
 
@@ -137786,6 +137827,7 @@ module.exports = function (Client) {
     player.wheels.forEach((wheel) => {
       wheel.sprite.visible = !Client.phaser.race.hidePhantoms;
     });
+    player.chassis.visible = !Client.phaser.race.hidePhantoms;
     Client.phaser.globalDrawers.phantomsDriftMarks.visible =
       !Client.phaser.race.hidePhantoms;
   };
@@ -137850,6 +137892,15 @@ module.exports = function (Client) {
           wheel.sprite.visible = false;
         }
       });
+    });
+
+    Client.phaser.fadeOut(player.chassis, fadeOutDuration, () => {
+      if (destroySprites) {
+        player.chassis.destroy();
+        player.chassis = undefined;
+      } else {
+        player.chassis.visible = false;
+      }
     });
   };
 };

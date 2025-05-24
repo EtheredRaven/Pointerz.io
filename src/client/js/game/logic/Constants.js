@@ -208,8 +208,8 @@ Constants.spaceship.thrustAnchorPoint = {
 };
 Constants.spaceship.thrustScale = 0.175;
 Constants.spaceship.wheelsAnchorPoints = [
-  { x: 107, y: -40 },
-  { x: 107, y: 40 },
+  { x: 111, y: -72 },
+  { x: 111, y: 72 },
   { x: -134, y: 0 },
 ];
 
